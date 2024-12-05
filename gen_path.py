@@ -1,65 +1,94 @@
 import osmnx as ox
 import random
-from pyproj import Transformer
-from shapely.geometry import LineString, MultiLineString
-from shapely.ops import linemerge, transform
+
+from geopy.distance import geodesic
+from shapely.geometry import LineString
+from shapely.geometry.point import Point
+from shapely.ops import linemerge
 from pymongo import MongoClient
 
 # Connect to MongoDB
-client = MongoClient("mongodb://sih24:sih24@localhost:27017/sih24?authSource=sih24")  # Adjust connection string as needed
+client = MongoClient(
+    "mongodb://sih24:sih24@localhost:27018/sih24?authSource=sih24")  # Adjust connection string as needed
 db = client['map_matching']  # Replace 'path_database' with your database name
-collection = db['paths']  # Replace 'paths_collection' with your collection name
+collection = db['paths_new']  # Replace 'paths_collection' with your collection name
 
 print("Connected to MongoDB!")
 
-def custom_random_walk_with_distance(G, start_node, target_distance_km):
-    """
-    Custom random walk on the graph that stops once the target distance (in kilometers) is reached.
-    Distance calculations are done in EPSG:32643, output is in EPSG:4326 for MongoDB storage.
-    """
-    transformer_to_32643 = Transformer.from_crs('EPSG:4326', 'EPSG:32643', always_xy=True)
-    transformer_to_4326 = Transformer.from_crs('EPSG:32643', 'EPSG:4326', always_xy=True)
 
-    target_distance_m = target_distance_km * 1000  # Convert target distance to meters
+def custom_random_walk_with_distance(G, start_node, target_distance_km):
+    target_distance_m = target_distance_km * 1000
     total_distance = 0
     current_node = start_node
-    walk_path = [current_node]  # Store the nodes visited
-    path_edges = []  # To store the geometries of the edges
+    walk_path = [current_node]
+    path_edges = []
+    visited_nodes = {start_node}
 
-    # Start walking until the target distance is reached
     while total_distance < target_distance_m:
         neighbors = list(G.neighbors(current_node))
-        if not neighbors:
-            break  # Stop if no neighbors
+        unvisited_neighbors = [n for n in neighbors if n not in visited_nodes]
 
-        next_node = random.choice(neighbors)
-        edge_data = G.get_edge_data(current_node, next_node)
+        if not unvisited_neighbors:
+            unvisited_neighbors = [n for n in neighbors if n != walk_path[-2]] if len(walk_path) > 1 else neighbors
 
-        if 'length' in edge_data[0]:
-            edge_length = edge_data[0]['length']  # Get edge length in meters
+        if not unvisited_neighbors:
+            break
+
+        next_node = random.choice(unvisited_neighbors)
+        edge_data = G.get_edge_data(current_node, next_node)[0]
+
+
+        edge_length = edge_data.get('length', 0)
+        to_node = edge_data.get('to')
+        from_node = edge_data.get('from')
+        remaining_distance = target_distance_m - total_distance
+
+        if total_distance + edge_length > target_distance_m:
+            # Decompose the edge into smaller segments
+            if 'geometry' in edge_data:
+                line_geom = edge_data['geometry']
+            else:
+                line_geom = LineString([(G.nodes[current_node]['x'], G.nodes[current_node]['y']),
+                                        (G.nodes[next_node]['x'], G.nodes[next_node]['y'])])
+
+            # Loop through the edge geometry
+            accumulated_distance = 0
+            segment_coords = list(line_geom.coords)
+            partial_path = [Point(segment_coords[0])]
+
+            for i in range(len(segment_coords) - 1):
+                p1 = Point(segment_coords[i])
+                p2 = Point(segment_coords[i + 1])
+                segment_length = geodesic(segment_coords[i], segment_coords[i + 1]).meters
+
+                if accumulated_distance + segment_length <= remaining_distance:
+                    partial_path.append(p2)
+                    accumulated_distance += segment_length
+                else:
+                    walk_path.append(to_node)
+                    walk_path.append(from_node)
+                    break
+
+            # Add the traversed portion of the edge to path_edges
+            extension = LineString(partial_path)
+            path_edges.append(extension)
+            total_distance += remaining_distance
+            break
+        else:
             total_distance += edge_length
-
-            if 'geometry' in edge_data[0]:
-                path_edges.append(edge_data[0]['geometry'])
+            if 'geometry' in edge_data:
+                path_edges.append(edge_data['geometry'])
             else:
                 path_edges.append(LineString([(G.nodes[current_node]['x'], G.nodes[current_node]['y']),
                                               (G.nodes[next_node]['x'], G.nodes[next_node]['y'])]))
 
-            walk_path.append(next_node)
-            current_node = next_node
-        else:
-            continue
-
-        if total_distance >= target_distance_m:
-            break
+        walk_path.append(next_node)
+        visited_nodes.add(next_node)
+        current_node = next_node
 
     path_geom = linemerge(path_edges)  # Merge paths (may result in LineString or MultiLineString)
 
-    # Transform the geometry to EPSG:32643 for distance calculation
-    path_32643 = transform(lambda x, y: transformer_to_32643.transform(x, y), path_geom)
-    path_length_km = path_32643.length / 1000.0  # Convert meters to kilometers
-
-    return walk_path, path_geom, path_length_km
+    return walk_path, path_geom, total_distance / 1000.0
 
 def save_path_to_mongodb(node, path_size, walk_path, path_geom, path_length_km):
     """
@@ -96,14 +125,16 @@ def save_path_to_mongodb(node, path_size, walk_path, path_geom, path_length_km):
     except Exception as e:
         print(f"Error saving path for node {node}: {e}")
 
+
 def generate_random_paths_all_nodes(G):
     """
     Generate 5 small, 5 medium, and 5 large random walk paths for each node in the graph, save to MongoDB.
     """
     path_lengths = {
-        'small': (10, 20),    # Small paths: 10-20 km
-        'medium': (20, 80),   # Medium paths: 20-80 km
-        'large': (80, 250)    # Large paths: 80-250 km
+        'small': (10, 20),  # Small paths: 10-20 km
+        'medium': (20, 80),  # Medium paths: 20-80 km
+        'large': (80, 250),
+        'XL': (250, 1000)  # Large paths: 80-250 km
     }
 
     for node in G.nodes:
@@ -117,6 +148,7 @@ def generate_random_paths_all_nodes(G):
 
                 except Exception as e:
                     print(f"Failed to generate path for node {node} ({path_size} path {i}): {e}")
+
 
 def create_undirected_graph_and_remove_nodes(G):
     G = ox.convert.to_undirected(G)
@@ -142,6 +174,7 @@ def create_undirected_graph_and_remove_nodes(G):
 
     return G
 
+
 def generate_custom_random_paths_for_test(G, nodes, path_lengths, num_paths=2):
     """
     Generate custom random walks with distance constraints for each node and save path details to MongoDB.
@@ -152,22 +185,41 @@ def generate_custom_random_paths_for_test(G, nodes, path_lengths, num_paths=2):
                 try:
                     target_distance_km = random.uniform(min_len, max_len)
                     walk_path, path_geom, path_length_km = custom_random_walk_with_distance(G, node, target_distance_km)
+                    print(path_length_km)
                     save_path_to_mongodb(node, path_size, walk_path, path_geom, path_length_km)
 
                 except Exception as e:
                     print(f"Failed to generate path for node {node} ({path_size} path {i}): {e}")
 
+
 def test_custom_path_generation(G):
     """
     Test function for generating custom random walks between two random nodes, save results to MongoDB.
     """
-    nodes = random.sample(list(G.nodes), 1)
-    path_lengths = {'small': (10, 15), 'medium': (20, 35)}
+    # Filter out nodes that lie in a roundabout
+    non_roundabout_nodes = [
+        node for node in G.nodes
+        if not any(
+            edge_data.get('junction') == 'roundabout'
+            for _, _, edge_data in G.edges(node, data=True)
+        )
+    ]
 
-    generate_custom_random_paths_for_test(G, nodes, path_lengths, num_paths=1)
+    # Sample nodes from the filtered list
+    if len(non_roundabout_nodes) < 1:
+        print("No valid nodes available outside roundabouts.")
+        return
+
+    nodes = random.sample(non_roundabout_nodes, 1)
+    path_lengths = {'small': (10, 15), 'medium': (120, 235)}
+
+    collection.delete_many({})
+    generate_custom_random_paths_for_test(G, nodes, path_lengths, num_paths=5)
     print("Custom paths generated and saved to MongoDB")
+
+
 
 # Example usage
 G = ox.load_graphml(f"india_highways.graphml")
 G_cleaned = create_undirected_graph_and_remove_nodes(G)
-generate_random_paths_all_nodes(G_cleaned)
+test_custom_path_generation(G)
