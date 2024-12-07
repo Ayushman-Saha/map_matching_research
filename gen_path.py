@@ -1,3 +1,4 @@
+import networkx as nx
 import osmnx as ox
 import random
 
@@ -184,7 +185,7 @@ def generate_custom_random_paths_for_test(G, nodes, path_lengths, num_paths=2):
             for i in range(num_paths):
                 try:
                     target_distance_km = random.uniform(min_len, max_len)
-                    walk_path, path_geom, path_length_km = custom_random_walk_with_distance(G, node, target_distance_km)
+                    walk_path, path_geom, path_length_km = find_path_with_target_distance(G, node, target_distance_km)
                     print(path_length_km)
                     save_path_to_mongodb(node, path_size, walk_path, path_geom, path_length_km)
 
@@ -211,11 +212,91 @@ def test_custom_path_generation(G):
         return
 
     nodes = random.sample(non_roundabout_nodes, 1)
-    path_lengths = {'small': (10, 15), 'medium': (120, 235)}
+    path_lengths = {'small': (10, 20),  # Small paths: 10-20 km
+        'medium': (20, 80),  # Medium paths: 20-80 km
+        'large': (80, 250),
+        'XL': (250, 1000)}
 
     collection.delete_many({})
     generate_custom_random_paths_for_test(G, nodes, path_lengths, num_paths=5)
     print("Custom paths generated and saved to MongoDB")
+
+
+def find_path_with_target_distance(G, start_node, max_distance_km, max_attempts=100):
+    """
+    Find a path from start_node to a random end node within a target distance range.
+
+    Parameters:
+    -----------
+    G : networkx.Graph
+        Input graph with geographic information
+    start_node : node
+        Starting node for the path
+    max_distance_km : float
+        Maximum target distance in kilometers
+    max_attempts : int, optional
+        Maximum number of attempts to find a suitable path
+
+    Returns:
+    --------
+    tuple: (path, path_geometry, actual_distance)
+        - path: List of nodes in the path
+        - path_geometry: Shapely LineString representing the path
+        - actual_distance: Actual distance of the path in kilometers
+    """
+    # Get all nodes in the graph
+    all_nodes = list(G.nodes())
+
+    for attempt in range(max_attempts):
+        # Choose a random end node
+        end_node = random.choice(all_nodes)
+
+        if end_node == start_node:
+            continue
+
+        try:
+            # Find the shortest path
+            path = nx.shortest_path(G, start_node, end_node, weight='length')
+
+            # Calculate total path length
+            path_length = sum(
+                G[path[i]][path[i + 1]][0].get('length',
+                                               geodesic(
+                                                   (G.nodes[path[i]]['x'], G.nodes[path[i]]['y']),
+                                                   (G.nodes[path[i + 1]]['x'], G.nodes[path[i + 1]]['y'])
+                                               ).meters
+                                               )
+                for i in range(len(path) - 1)
+            ) / 1000.0  # Convert to kilometers
+
+            # Check if path length is within acceptable range
+            if 0.5 * max_distance_km <= path_length <= 1.5 * max_distance_km:
+                # Reconstruct path geometry
+                path_edges = []
+                for i in range(len(path) - 1):
+                    edge_data = G.get_edge_data(path[i], path[i + 1])[0]
+
+                    if 'geometry' in edge_data:
+                        path_edges.append(edge_data['geometry'])
+                    else:
+                        # Create a simple line if no geometry exists
+                        path_edges.append(LineString([
+                            (G.nodes[path[i]]['x'], G.nodes[path[i]]['y']),
+                            (G.nodes[path[i + 1]]['x'], G.nodes[path[i + 1]]['y'])
+                        ]))
+
+                # Merge path edges
+                from shapely.ops import linemerge
+                path_geometry = linemerge(path_edges)
+
+                return path, path_geometry, path_length
+
+        except nx.NetworkXNoPath:
+            # No path exists between start and end nodes
+            continue
+
+    # If no suitable path found after max attempts
+    raise ValueError(f"Could not find a path within {max_distance_km} km after {max_attempts} attempts")
 
 
 
