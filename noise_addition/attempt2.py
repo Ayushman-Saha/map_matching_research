@@ -385,7 +385,7 @@ def main():
     Main execution function for path simulation and expansion.
     """
     # Load graph and preprocess
-    graph = ox.io.load_graphml("../idk/merged_graph.graphml")
+    graph = ox.io.load_graphml("../data/merged_graph.graphml")
     graph = ox.convert.to_undirected(graph)
     print("Graph loaded!")
 
