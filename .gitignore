@@ -1,3 +1,16 @@
-data/india_highways.graphml
-data/merged_graph.graphml
-./cache
+data/*.csv
+
+# Python envs
+.venv/
+env/
+
+# Latex Files 
+main.pdf
+*.log
+*.bbl
+*.blg
+*.synctex.gz
+*.vtc
+*.aux
+*.out
+*.toc

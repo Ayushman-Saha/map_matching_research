@@ -1,0 +1,256 @@
+%! TEX root = ./main.tex
+\usepackage[linesnumbered,algoruled,boxed,lined]{algorithm2e}
+\usepackage{complexity} % For symbols in complexity class.
+%\usepackage{todonotes} % For todo notes
+%\presetkeys{todonotes}{inline}{}
+%\usepackage{geometry}
+ %\geometry{
+ %a4paper,
+ %total={170mm,257mm},
+ %left=20mm,
+ %top=20mm,
+ %}
+ 
+\usepackage{tikz}
+\usetikzlibrary{positioning,backgrounds,patterns,calc}
+
+\usepackage{enumitem}
+
+\usepackage[noadjust]{cite} % to sort references inline
+
+\usepackage{thmtools}
+\usepackage{thm-restate}
+\declaretheorem[name=Theorem,numberwithin=section]{thm}
+
+
+\usetikzlibrary{patterns}
+\usepackage{hyperref}
+ \hypersetup{%
+  colorlinks=true,% hyperlinks will be black
+  linkbordercolor=red,% hyperlink borders will be red% border style will be underline of width 1pt
+  citecolor=green!70!black,
+}
+%\usepackage{cleveref}
+%\usepackage{subcaption}
+%\usepackage[a4paper, total={6.0in, 8.5in}]{geometry}
+\usepackage{subcaption}
+\captionsetup{compatibility=false}
+
+\usepackage{enumitem}
+ 
+ \usepackage{graphicx}
+ \usepackage{amsmath}
+ \usepackage{amsthm}
+
+%\usepackage[dvipsnames]{xcolor}
+\newcommand{\prelim}[1]{\textcolor{cyan}{#1}}
+\newcommand{\tocheck}[1]{\textcolor{cyan}{#1}}
+\newcommand{\todo}[1]{\textcolor{red}{\textbf{#1}}}
+\newcommand{\blue}[1]{{\color{blue}{#1}}}
+\newcommand{\red}[1]{{\color{red}[#1]}}
+\newcommand{\dc}[1]{\textcolor{cyan}{#1 - DC}}
+\newcommand{\ff}[1]{\textcolor{violet}{#1 - FF}}
+\newcommand{\mm}[1]{\textcolor{green}{#1 - MM}}
+\newcommand{\od}[1]{\textcolor{teal}{#1}}
+\newcommand{\pt}[1]{\textcolor{purple}{#1 - PT}}
+\newcommand{\SoPP}{\textsc{Shortest Path Partition}\xspace}
+\newcommand{\dist}[2]{d\left(#1,#2\right)}
+
+\newcommand{\partx}[1]{\mathcal{P}_X(#1)}
+\newcommand{\partu}[1]{\mathcal{P}_U(#1)}
+\newcommand{\rpartx}[1]{\mathcal{R}_X(#1)}
+\newcommand{\VCLD}{$k$-VC LD-Set}
+\newcommand{\LD}{\textsc{Locating-Dominating Set}\xspace}
+\newcommand{\TCPB}{\textsc{Test Cover}\xspace}
+
+\newcommand{\Rangle}{\rangle \hspace{-0.8mm}\rangle}
+\newcommand{\Langle}{\langle \hspace{-0.8mm}\langle}
+\newcommand{\test}{\mathcal{T}}
+\newcommand{\rb}{\textsc{R-B Location}~}
+\newcommand{\bigo}{\mathcal{O}}
+
+
+\newcommand{\setrep}{\texttt{set-rep}}
+\newcommand{\bitrep}{\texttt{bit-rep}}
+\newcommand{\bit}{\texttt{bit}}
+
+\newcommand{\dptw}{\texttt{opt}}
+
+\newcommand{\ETH}{{\textsf{ETH}}}
+
+\newcommand{\bbN}{{\mathbb N}}
+\newcommand{\bbR}{{\mathbb R}}
+
+\newcommand{\diam}{\textsf{diam}}
+\newcommand{\tw}{\textsf{tw}}
+\newcommand{\tl}{\textsf{tl}}
+\newcommand{\ctw}{\textsf{ctw}}
+\newcommand{\td}{\textsf{td}}
+\newcommand{\fvs}{\textsf{fvs}}
+\newcommand{\fes}{\textsf{fes}}
+\newcommand{\vc}{\textsf{vc}}
+\newcommand{\nd}{\textsf{nd}}
+\newcommand{\cvd}{\textsf{cvd}}
+\newcommand{\tc}{\textsf{tc}}
+\newcommand{\dclique}{\textsf{dc}}
+\newcommand{\bd}{\textsf{bd}}
+
+\newcommand{\ld}{\gamma^{LD}}
+\newcommand{\calA}{\mathcal{A}}
+\newcommand{\calB}{\mathcal{B}}
+\newcommand{\calC}{\mathcal{C}}
+\newcommand{\dom}{\mathcal{D}}
+\newcommand{\calE}{{\mathcal{E}}}
+\newcommand{\calF}{\mathcal{F}}
+\newcommand{\calG}{\mathcal{G}}
+\newcommand{\calH}{{\mathcal H}}
+\newcommand{\calI}{{\mathcal I}}
+\newcommand{\calO}{\mathcal{O}}
+\newcommand{\calP}{\mathcal{P}}
+\newcommand{\calS}{\mathcal{S}}
+\newcommand{\calT}{\mathcal{T}}
+\newcommand{\calV}{\mathcal{V}}
+\newcommand{\calW}{\mathcal{W}}
+\newcommand{\calX}{\mathcal{X}}
+\newcommand{\calY}{\mathcal{Y}}
+\newcommand{\calZ}{\mathcal{Z}}
+
+\newcommand{\true}{\texttt{True}}
+\newcommand{\false}{\texttt{False}}
+
+\newcommand{\POLY}{\textsf{poly}}
+\newcommand{\Complete}{\textsf{Complete}}
+
+\newcommand{\yes}{\textsc{Yes}}
+\newcommand{\no}{\textsc{No}}
+\newcommand{\YES}{\textsc{Yes}}
+\newcommand{\NO}{\textsc{No}}
+
+%
+\newcommand{\id}{\mathcal{I}}
+\newcommand{\un}{\mathcal{U}}
+\newcommand{\triv}{{\rm Tr}}
+\newcommand{\m}{\mathcal{M}}
+\newcommand{\module}[2]{\mathcal{M}_{#1}(#2)}
+%\newcommand{\p}{\mathcal{P}}
+\newcommand{\x}{\mathcal{X}}
+\newcommand{\scrP}{\mathscr{P}}
+\newcommand{\s}{\mathcal{S}}
+\newcommand{\q}{\mathcal{Q}}
+%\newcommand{\bigo}{\mathcal{O}}
+\newcommand{\ostar}{\mathcal{O}^\star}
+\newcommand{\cell}[2]{{\rm C}_{#1}(#2)}
+\newcommand{\nbd}[3]{N_{#1|#2}(#3)}
+\newcommand{\cnbd}[3]{N_{#1|#2}[#3]}
+\newcommand{\lset}{{\large \sc \texttt{L-Set}}}
+\newcommand{\ldset}{{\large \sc \texttt{LD-Set}}}
+\newcommand{\qlset}[1]{{\large \sc \texttt{L($#1$)-Set}}}
+\newcommand{\qldset}[1]{{\large \sc \texttt{LD($#1$)-Set}}}
+\newcommand{\rbqlset}[1]{{\large \sc \texttt{RB-L($#1$)-Set}}}
+\newcommand{\rbqldset}[1]{{\large \sc \texttt{RB-LD($#1$)-Set}}}
+\newcommand{\lc}{\texttt{opt}}
+%\newcommand{\LD}{\textsc{Location-Domination}}
+%\newcommand{\PP}{\textsc{Pre-Partitioned Red-Blue Test Cover}}
+
+%\newtheorem{theorem}{Theorem}
+%\newtheorem{lemma}{Lemma}
+%\newtheorem{corollary}{Corollary}[section]
+%\newtheorem{observation}{Observation}[section]
+%\newtheorem{proposition}{Proposition}[section]
+\newtheorem{reduction rule}[theorem]{Reduction Rule}
+%\newtheorem{marking-scheme}{Marking Scheme}[section]
+%\newtheorem{remark}{Remark}[section]
+
+% custom labels for heavy definition environments
+
+\makeatletter
+\newcommand{\customlabel}[2]{%
+\protected@write \@auxout {}{\string \newlabel {#1}{{#2}{}}}}
+\makeatother
+
+
+% ################ NEW ENVIROMENT STARTS ##########################
+\newcommand{\defparproblem}[4]{
+  \vspace{1mm}
+\noindent\fbox{
+  \begin{minipage}{0.96\textwidth}
+  \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr} #1  & {\bf{Parameter:}} #3
+\\ \end{tabular*}
+  {\bf{Input:}} #2  \\
+  {\bf{Question:}} #4
+  \end{minipage}
+  }
+  \vspace{1mm}
+}
+
+\newcommand{\defparproblemoutput}[4]{
+  \vspace{1mm}
+\noindent\fbox{
+  \begin{minipage}{0.96\textwidth}
+  \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr} #1  & {\bf{Parameter:}} #3
+\\ \end{tabular*}
+  {\bf{Input:}} #2  \\
+  {\bf{Output:}} #4
+  \end{minipage}
+  }
+  \vspace{1mm}
+}
+
+
+\newcommand{\defproblem}[3]{
+  \vspace{1mm}
+\noindent\fbox{
+  \begin{minipage}{0.96\textwidth}
+  \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr} #1 \\ \end{tabular*}
+  {\bf{Input:}} #2  \\
+  {\bf{Question:}} #3
+  \end{minipage}
+  }
+  \vspace{1mm}
+}
+
+\newcommand{\defproblemaux}[4]{
+  \vspace{1mm}
+\noindent\fbox{
+  \begin{minipage}{0.96\textwidth}
+  \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr} #1 \\ \end{tabular*}
+  {\bf{Input:}} #2  \\
+  {\bf{Question:}} #3\\
+  {\bf{Auxiliary Graph:}} #4
+  \end{minipage}
+  }
+  \vspace{1mm}
+}
+
+\newcommand{\defproblemout}[3]{
+  \vspace{1mm}
+\noindent\fbox{
+  \begin{minipage}{0.96\textwidth}
+  \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lr} #1 \\ \end{tabular*}
+  {\bf{Input:}} #2  \\
+  {\bf{Output:}} #3
+  \end{minipage}
+  }
+  \vspace{1mm}
+}
+
+\newcommand{\parnamedefn}[4]{
+\begin{tabbing}
+\name{#1} \\
+\emph{Input:} \hspace{1cm} \= \parbox[t]{10cm}{#2} \\
+\emph{Parameter:}            \> \parbox[t]{10cm}{#3} \\
+\emph{Question:}             \> \parbox[t]{10cm}{#4} \\
+% \emph{Input:} \hspace{1.2cm} \= \parbox[t]{9.5cm}{#2} \\
+% \emph{Parameter:}            \> \parbox[t]{9.5cm}{#3} \\
+% \emph{Question:}             \> \parbox[t]{9.5cm}{#4} \\
+\end{tabbing}
+\vspace{-0.5cm}
+}
+
+\newcommand{\decnamedefn}[3]{
+  \begin{tabbing} #1\\
+    \emph{Input:} \hspace{1.2cm} \= \parbox[t]{12cm}{#2} \\
+    \emph{Question:}             \> \parbox[t]{12cm}{#3} \\
+  \end{tabbing}
+}
+% ################ NEW ENVIROMENT ENDS ##########################
