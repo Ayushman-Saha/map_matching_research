@@ -4,7 +4,7 @@ import numpy as np
 from geopy.distance import geodesic
 
 # Load the graphml file and station data
-G = ox.load_graphml("../data/merged_graph.graphml")
+G = ox.load_graphml("../data/merged_graph_gujarat.graphml")
 stations = pd.read_csv("station_visibility_summary.csv")
 stations.columns = stations.columns.str.strip()  # Clean column names
 

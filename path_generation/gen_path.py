@@ -301,6 +301,6 @@ def find_path_with_target_distance(G, start_node, max_distance_km, max_attempts=
 
 
 # Example usage
-G = ox.load_graphml(f"india_highways.graphml")
+G = ox.load_graphml(f"gujarat_highways.graphml")
 G_cleaned = create_undirected_graph_and_remove_nodes(G)
 test_custom_path_generation(G)
