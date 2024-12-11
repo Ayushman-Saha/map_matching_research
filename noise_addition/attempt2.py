@@ -6,9 +6,9 @@ import geopandas as gpd
 import networkx as nx
 import osmnx as ox
 import matplotlib.pyplot as plt
-from pyproj import Transformer
+from pyproj import Transformer, CRS
 from shapely.geometry import Point, LineString
-from geopy.distance import geodesic
+from geopy.distance import geodesic, distance
 from pymongo import MongoClient
 from bson import ObjectId
 
@@ -27,10 +27,10 @@ INITIAL_SAMPLING_RATE = {
     "motorcycle": 2.5 * (INTERVAL / 500)
 }
 
-ANGLE_LIMIT = {
-    "car": 8,
-    "truck": 5,
-    "motorcycle": 10
+ANGLE_AND_RADIUS_LIMIT = {
+    "car": (15, 75),
+    "truck": (10,45),
+    "motorcycle": (20,100)
 }
 
 TRAFFIC_VALUES = {
@@ -193,8 +193,8 @@ def interpolate_points(nodes, edge,
         tuple: List of Y values and modified GeoDataFrame with point characteristics
     """
     # Extract edge details
-    to_node = edge['to']
-    from_node = edge['from']
+    to_node = edge.name[1]
+    from_node = edge.name[0]
     total_length = edge.length
 
     #Generate the points
@@ -327,53 +327,56 @@ def generate_intermediate_nodes(edge):
 
     return gdf_4326_gen, gdf_edge
 
-def calculate_new_point(origin, distance_m, bearing_deg):
-    origin_lat, origin_lon = origin.y, origin.x
-    new_point = geodesic(meters=distance_m).destination((origin_lat, origin_lon), bearing_deg)
-    return Point(new_point[1], new_point[0])  # Return as Shapely Point (lon, lat)
+# def calculate_new_point(origin, distance_m, bearing_deg):
+#     origin_lat, origin_lon = origin.y, origin.x
+#     new_point = geodesic(meters=distance_m).destination((origin_lat, origin_lon), bearing_deg)
+#     return Point(new_point[1], new_point[0])  # Return as Shapely Point (lon, lat)
 
-def expand_points(Y_values, gdf_4326_gen, chosen_vehicle_type):
+def expand_points(Y_values, gdf_4326_gen, chosen_vehicle_type, gdf_edge):
     # Initialize list to store all new points
     expanded_points = []
 
+    #Project the edges for calculation in 2D
+    utm_crs = CRS.from_user_input(gdf_edge.estimate_utm_crs())
+    edge_projected = gdf_edge.to_crs(utm_crs)
+
     # Initialize base distance and adjustment parameters
     base_distance = INTERVAL / (floor(np.mean(Y_values)))  # Initial average distance in meters
-    delta_limit = 0.01 * base_distance  # Maximum random variation in meters
+    delta_limit = 0.1 * base_distance  # Maximum random variation in meters
 
-    print(base_distance)
+    point_distance = -base_distance #The distance of point from the start
 
     # Iterate over points and add intermediate points
     for idx in range(len(gdf_4326_gen) - 1):
         start_point = gdf_4326_gen.geometry.iloc[idx]
-        end_point = gdf_4326_gen.geometry.iloc[idx + 1]
-        current_point = start_point  # Start interpolation from the current point
 
         # Number of points to interpolate
         num_points = Y_values[idx] if idx < len(Y_values) else 0
         if num_points > 0:
             # Calculate bearing between start and end points
-            bearing = np.degrees(np.arctan2(end_point.x - start_point.x, end_point.y - start_point.y)) % 360
+            # bearing = np.degrees(np.arctan2(end_point.x - start_point.x, end_point.y - start_point.y)) % 360
 
             # Smoothly adjust distances for realism
             distances = []
             for _ in range(num_points):
-                delta = np.random.uniform(0.5 * delta_limit, delta_limit)  # Small random adjustment
-                base_distance = max(10, base_distance + delta)  # Update base distance, ensure minimum 10m
-                distances.append(base_distance)
+                delta = np.random.uniform(0.5 * delta_limit, 1.5 * delta_limit)  # Small random adjustment
+                point_distance += max(base_distance + 5, base_distance + delta)
+                distances.append(point_distance)
 
             # Generate intermediate points
             for distance_m in distances:
-                random_bearing = bearing + np.random.uniform(-ANGLE_LIMIT[chosen_vehicle_type],
-                                                             ANGLE_LIMIT[chosen_vehicle_type])
-                new_point = calculate_new_point(current_point, distance_m, random_bearing)
-                expanded_points.append(new_point)
-                current_point = new_point  # Update the current point to the newly generated one
+                random_bearing = np.random.uniform(-ANGLE_AND_RADIUS_LIMIT[chosen_vehicle_type][0], ANGLE_AND_RADIUS_LIMIT[chosen_vehicle_type][0])
+                new_point = edge_projected.geometry.iloc[0].interpolate(distance_m)
 
-        # Add the original start point (or current point) to the list
-        expanded_points.append(start_point)
+                #Reproject the generated points back to lat and lng
+                new_point_gdf = gpd.GeoDataFrame(geometry=[new_point], crs=utm_crs).to_crs("EPSG:4326")
+                new_point = new_point_gdf.geometry.iloc[0]
 
-    # Append the final point
-    expanded_points.append(gdf_4326_gen.geometry.iloc[-1])
+                #Displace the point from the centreline
+                new_location = distance(meters=np.random.uniform(30,ANGLE_AND_RADIUS_LIMIT[chosen_vehicle_type][1])).destination((new_point.y, new_point.x), random_bearing)
+                displaced_point = Point(new_location[1], new_location[0])
+
+                expanded_points.append(displaced_point)
 
     # Create new GeoDataFrame with expanded points
     gdf_expanded = gpd.GeoDataFrame(geometry=expanded_points, crs=gdf_4326_gen.crs)
@@ -385,8 +388,8 @@ def main():
     Main execution function for path simulation and expansion.
     """
     # Load graph and preprocess
-    graph = ox.io.load_graphml("../data/merged_graph_gujarat.graphml")
-    graph = ox.convert.to_undirected(graph)
+    graph = ox.load_graphml("../idk/merged_graph.graphml")
+    # graph = ox.convert.to_undirected(graph)
     print("Graph loaded!")
 
     #Get the edges and nodes
@@ -405,19 +408,20 @@ def main():
     # Connect to MongoDB and retrieve path
     mongo_string = "mongodb://sih24:sih24@localhost:27018/sih24?authSource=sih24"
     client = MongoClient(mongo_string)
-    collection = client['map_matching']['paths_new_algorithm']
-    paths = collection.find_one({"_id": ObjectId("673e1f5e0f4ddc41d44150aa")})
+    collection = client['map_matching']['paths_tree']
+    paths = collection.find_one({"_id": ObjectId("675966a4ebb710f20b8056d0")})
     print("Connected to MongoDB!")
 
     # Select specific parameters
     chosen_vehicle_type = "motorcycle"
     chosen_season = "spring"
-    current_hour = 9
+    current_hour = 1
 
     #Extracting the nodes and egdes
-    path_nodes = set(paths['path_nodes'])
-    s = graph.subgraph(path_nodes)
-    sub_nodes, sub_edges = ox.graph_to_gdfs(s)
+    path_nodes = paths['route']
+    s = graph.subgraph(path_nodes).copy()
+    sub_edges = ox.routing.route_to_gdf(s, path_nodes)
+    sub_nodes, _ = ox.graph_to_gdfs(s)
 
     # #Visualising the path
     # fig, ax = plt.subplots()
@@ -425,14 +429,6 @@ def main():
     # sub_nodes.plot(ax=ax, color='red')
     # plt.title("Graph Visualization with Original Geometries", fontsize=20)
     # plt.show()
-
-    # edge = sub_edges.iloc[9]
-    #
-    # #Generating the intermediate points and calculating the Y values
-    # Y_values, gdf_4326_gen, gdf_edge = interpolate_points(nodes, edge, chosen_vehicle_type, chosen_season,current_hour,INTERVAL,betweenness_centrality_mean, betweenness_centrality_std)
-    #
-    # #Expanding the noisy points
-    # gdf_expanded = expand_points(Y_values, gdf_4326_gen, chosen_vehicle_type)
 
     # Create an empty list to store the expanded GeoDataFrames
     expanded_gdfs = []
@@ -446,24 +442,31 @@ def main():
         )
 
         # Expanding the noisy points
-        gdf_expanded = expand_points(Y_values, gdf_4326_gen, chosen_vehicle_type)
+        gdf_expanded = expand_points(Y_values, gdf_4326_gen, chosen_vehicle_type, gdf_edge)
 
         # Append the expanded GeoDataFrame to the list
         expanded_gdfs.append(gdf_expanded)
 
     # Concatenate all the expanded GeoDataFrames into one final GeoDataFrame
-    final_gdf = pd.concat(expanded_gdfs, ignore_index=True)
+    final_geom = []
+    for expanded_gdf in expanded_gdfs:
+        geometry = expanded_gdf.geometry.to_list()
+        for point in geometry:
+            final_geom.append(point)
+    print(final_geom)
+
+    final_gdf = gpd.GeoDataFrame(geometry=final_geom, crs="EPSG:4326")
 
     print(final_gdf)
     final_gdf.to_file("final_expanded_points.geojson", driver="GeoJSON")
 
     # #Visualtion of the entire plot
-    # fig, ax = plt.subplots(figsize=(10, 10))
-    # gdf_4326_gen.plot(ax=ax, color='blue', marker='o', label='Original Points')
-    # gdf_edge.plot(ax=ax, color='blue')
-    # gdf_expanded.plot(ax=ax, color='red', marker='x', label='Expanded Points')
-    # plt.legend()
-    # plt.show()
+    fig1, ax = plt.subplots(figsize=(10, 10))
+    gdf_4326_gen.plot(ax=ax, color='blue', marker='o', label='Original Points')
+    sub_edges.plot(ax=ax, color='blue')
+    final_gdf.plot(ax=ax, color='red', marker='x', label='Expanded Points')
+    plt.legend()
+    plt.show()
 
 
 if __name__ == "__main__":
