@@ -4,6 +4,25 @@ import random
 import numpy as np
 from pymongo import MongoClient
 
+# Connect to MongoDB
+client = MongoClient("mongodb://sih24:sih24@localhost:27018/sih24?authSource=sih24")
+db = client['map_matching']
+collection = db['paths_tree']
+
+print("Connected to MongoDB!")
+
+#Load graph
+G = ox.load_graphml("../data/india_highways.graphml")
+graph = nx.DiGraph(G)
+
+path_lengths = {
+    'small': (10000, 20000),
+    'medium': (20000, 80000),
+    'large': (80000, 250000),
+    'XL': (250000, 750000)
+}
+
+print("Graph loaded!")
 
 def create_layers(start_node,graph):
     layers = {}
@@ -91,39 +110,23 @@ def categorize_walks(all_walk, num_samples = 5):
         selected_paths[category] = random.sample(paths, min(len(paths), num_samples))
     return selected_paths
 
-def save_to_mongo(collection, category, route_details):
+def save_to_mongo(category, route_details):
     try:
-        collection.insert_one({
+        path = [int(path_nodes) for path_nodes in route_details["route"]]
+        path_doc = {
             "category": category,
             "start_node": route_details["start_node"],
             "route_length": route_details["route_length"],
-            "route": route_details["route"],
-        })
+            "route": path,
+        }
+        result = collection.insert_one(path_doc)
+
+        print(result.inserted_id)
     except Exception as e:
         print(f"Failed to save {category} for {route_details['start_node']}: {e}")
 
 
-#Load graph
-G = ox.load_graphml("../states_graph/graphml/gujarat_highways.graphml")
-graph = nx.DiGraph(G)
-
-path_lengths = {
-    'small': (10000, 20000),
-    'medium': (20000, 80000),
-    'large': (80000, 250000),
-    'XL': (250000, 750000)
-}
-
-print("Graph loaded!")
-
-# Connect to MongoDB
-client = MongoClient("mongodb://sih24:sih24@localhost:27018/sih24?authSource=sih24")
-db = client['map_matching']
-collection = db['paths_tree']
-
-print("Connected to MongoDB!")
-
-node_list = list(graph.nodes)
+node_list = list(graph.nodes)[1:3]
 
 for start_node in node_list:
     print(f"Processing for node {start_node}")
@@ -135,8 +138,8 @@ for start_node in node_list:
         for category in categorized_walks:
             print(f"Processing for category {category}")
             for route in categorized_walks[category]:
-                print(f"Processing for route {route}")
-                # save_to_mongo(collection, category, route)
+                # print(f"Processing for route {route}")
+                save_to_mongo(category, route)
     except Exception as e:
         print(f"Failed to process for {start_node}: {e}")
 
