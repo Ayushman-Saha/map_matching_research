@@ -22,9 +22,9 @@ SEASONS = {
 }
 
 INITIAL_SAMPLING_RATE = {
-    "car": 2 * (INTERVAL / 500),
-    "truck": 3 * (INTERVAL / 500),
-    "motorcycle": 2.5 * (INTERVAL / 500)
+    "car": 4 * (INTERVAL / 500),
+    "truck": 6 * (INTERVAL / 500),
+    "motorcycle": 5 * (INTERVAL / 500)
 }
 
 ANGLE_AND_RADIUS_LIMIT = {
@@ -40,6 +40,46 @@ TRAFFIC_VALUES = {
     19: 950, 20: 800, 21: 650, 22: 550, 23: 500
 }
 
+class TimeTracker:
+    """
+    A class to manage time tracking across different segments of a route.
+    """
+
+    def __init__(self, initial_hour):
+        """
+        Initialize the time tracker.
+
+        :param initial_hour: Starting hour of the journey
+        """
+        self.current_hour = initial_hour
+        self.total_elapsed_time = 0  # Total time in minutes
+
+    def update_time(self, segment_time):
+        """
+        Update the total elapsed time and current hour.
+
+        :param segment_time: Time taken for the current segment in minutes
+        :return: Updated current hour
+        """
+        # Update total elapsed time
+        self.total_elapsed_time += segment_time
+
+        # Calculate new current hour
+        self.current_hour = (self.current_hour + int(self.total_elapsed_time // 60)) % 24
+
+        # Adjust total elapsed time to remaining minutes
+        self.total_elapsed_time %= 60
+
+        return self.current_hour
+
+    @property
+    def total_hours(self):
+        """
+        Calculate total hours traveled.
+
+        :return: Total hours as a float
+        """
+        return self.total_elapsed_time / 60
 
 def sigmoid_normalization(value, mean, std):
     """
@@ -173,7 +213,7 @@ def normalize_weather(nodes):
 
 
 def interpolate_points(nodes, edge,
-                       chosen_vehicle_type, chosen_season, current_hour,
+                       chosen_vehicle_type, chosen_season, time_tracker,
                        interval, betweenness_centrality_mean,
                        betweenness_centrality_std):
     """
@@ -184,7 +224,7 @@ def interpolate_points(nodes, edge,
         edge (pd.Series): Edge information
         chosen_vehicle_type (str): Type of vehicle
         chosen_season (str): Current season
-        current_hour (int): Current hour of the day
+        time_tracker (TimeTracker): Time tracking object
         interval (int): Distance interval for point generation
         betweenness_centrality_mean (float): Mean betweenness centrality
         betweenness_centrality_std (float): Standard deviation of betweenness centrality
@@ -247,6 +287,9 @@ def interpolate_points(nodes, edge,
 
     # Iterate through points and calculate impact factors
     for idx, point in gdf_4326_gen.iterrows():
+
+        current_hour = time_tracker.current_hour
+
         # Get current rainfall and visibility
         R = gdf_4326_gen[f"rainfall_{chosen_season}"][idx]
         V = gdf_4326_gen[f"visibility_{chosen_season}"][idx]
@@ -266,7 +309,7 @@ def interpolate_points(nodes, edge,
             # Random coefficients for impact calculation
             a = np.random.uniform(0.02, 0.10)
             b = np.random.uniform(0.04, 0.09)
-            c = 1 + sigmoid_normalization(
+            c = sigmoid_normalization(
                 float(edge["betweenness_centrality"]),
                 betweenness_centrality_mean,
                 betweenness_centrality_std
@@ -285,10 +328,16 @@ def interpolate_points(nodes, edge,
 
             # Calculate speed and segment time
             speed_kmph = calculate_speed(Y)
-            segment_time = (interval / 1000) / speed_kmph
+            segment_time = ((interval / 1000) / speed_kmph) * 60
 
-            # Store debug information if needed
-            # You might want to add logging or print statements here
+            current_hour = time_tracker.update_time(segment_time)
+
+            print(f"----- segment: {idx} ----------")
+            print(f"    Segment length: {interval}")
+            print(f"    Current hour: {current_hour}")
+            print(f"    Speed : {speed_kmph}")
+            print(f"    Segment time: {segment_time}")
+            print(f"    Time elapsed: {time_tracker.total_elapsed_time}")
 
             Y_values.append(Y)
 
@@ -301,7 +350,7 @@ def interpolate_points(nodes, edge,
     # Round Y values
     Y_values = [round(value) for value in Y_values]
 
-    return Y_values, gdf_4326_gen, gdf_edge
+    return Y_values, gdf_4326_gen, gdf_edge, time_tracker.total_elapsed_time
 
 
 
@@ -326,11 +375,6 @@ def generate_intermediate_nodes(edge):
     gdf_4326_gen = gpd.GeoDataFrame(geometry=points_4326, crs="EPSG:4326")
 
     return gdf_4326_gen, gdf_edge
-
-# def calculate_new_point(origin, distance_m, bearing_deg):
-#     origin_lat, origin_lon = origin.y, origin.x
-#     new_point = geodesic(meters=distance_m).destination((origin_lat, origin_lon), bearing_deg)
-#     return Point(new_point[1], new_point[0])  # Return as Shapely Point (lon, lat)
 
 def expand_points(Y_values, gdf_4326_gen, chosen_vehicle_type, gdf_edge):
     # Initialize list to store all new points
@@ -388,8 +432,7 @@ def main():
     Main execution function for path simulation and expansion.
     """
     # Load graph and preprocess
-    graph = ox.load_graphml("../idk/merged_graph.graphml")
-    # graph = ox.convert.to_undirected(graph)
+    graph = ox.load_graphml("../data/merged_graph.graphml")
     print("Graph loaded!")
 
     #Get the edges and nodes
@@ -409,13 +452,16 @@ def main():
     mongo_string = "mongodb://sih24:sih24@localhost:27018/sih24?authSource=sih24"
     client = MongoClient(mongo_string)
     collection = client['map_matching']['paths_tree']
-    paths = collection.find_one({"_id": ObjectId("675966a4ebb710f20b8056d0")})
+    paths = collection.find_one({"_id": ObjectId("675966a5ebb710f20b8056d3")})
     print("Connected to MongoDB!")
 
     # Select specific parameters
-    chosen_vehicle_type = "motorcycle"
+    chosen_vehicle_type = "car"
     chosen_season = "spring"
-    current_hour = 1
+    start_hour = 0
+
+    # Initiate Time Tracker
+    time_tracker = TimeTracker(start_hour)
 
     #Extracting the nodes and egdes
     path_nodes = paths['route']
@@ -435,9 +481,10 @@ def main():
 
     # Loop through each edge in sub_edges
     for index, edge in sub_edges.iterrows():
+        print(f"------ Edge: {index}  --------")
         # Generating the intermediate points and calculating the Y values
-        Y_values, gdf_4326_gen, gdf_edge = interpolate_points(
-            nodes, edge, chosen_vehicle_type, chosen_season, current_hour, INTERVAL,
+        Y_values, gdf_4326_gen, gdf_edge, time_taken = interpolate_points(
+            nodes, edge, chosen_vehicle_type, chosen_season, time_tracker, INTERVAL,
             betweenness_centrality_mean, betweenness_centrality_std
         )
 
@@ -447,22 +494,26 @@ def main():
         # Append the expanded GeoDataFrame to the list
         expanded_gdfs.append(gdf_expanded)
 
+        print(f"Time taken for {index}: {time_taken}")
+        print(f"Current hour: {time_tracker.current_hour}")
+        print(f"Cummulative time: {time_tracker.total_elapsed_time}")
+
     # Concatenate all the expanded GeoDataFrames into one final GeoDataFrame
     final_geom = []
     for expanded_gdf in expanded_gdfs:
         geometry = expanded_gdf.geometry.to_list()
         for point in geometry:
             final_geom.append(point)
-    print(final_geom)
+    # print(final_geom)
 
     final_gdf = gpd.GeoDataFrame(geometry=final_geom, crs="EPSG:4326")
 
-    print(final_gdf)
+
+    # print(final_gdf)
     final_gdf.to_file("final_expanded_points.geojson", driver="GeoJSON")
 
     # #Visualtion of the entire plot
     fig1, ax = plt.subplots(figsize=(10, 10))
-    gdf_4326_gen.plot(ax=ax, color='blue', marker='o', label='Original Points')
     sub_edges.plot(ax=ax, color='blue')
     final_gdf.plot(ax=ax, color='red', marker='x', label='Expanded Points')
     plt.legend()

@@ -1,4 +1,6 @@
 data/*.csv
+#Generated geojson
+noise_addition/*geojson
 
 # Python envs
 .venv/
