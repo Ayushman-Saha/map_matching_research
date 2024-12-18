@@ -109,12 +109,194 @@ We believe this systematic way of generating datasets
 fills the void of lack of datasets.
 \end{abstract}
 
+%Description for the path generation and noise addition algorithms%
+
+\section{Introduction}
+\subsection{Overview}
+The simulation framework is designed to process geospatial data and generate enriched datasets by simulating vehicle trajectories on a predefined graph. The system leverages external data sources, including MongoDB and OpenStreetMap, and incorporates various environmental factors like rainfall, visibility, and traffic conditions. The code is modular, divided across three files:
+
+\begin{enumerate}
+    \item \textbf{main.py}: Orchestrates the simulation process.
+    \item \textbf{parameter.py}: Handles parameter preprocessing and normalization.
+    \item \textbf{point\_generator.py}: Generates intermediate and expanded points along edges.
+\end{enumerate}
+
+\section{Methodology}
+
+\subsection{Geospatial Data Source}
+The graph used for the simulation represents the primary highways and trucking routes across India, extracted from OpenStreetMap (OSM). The graph is structured as:
+
+\begin{itemize}
+    \item \textbf{Nodes}: Represent junctions or intersections on the graph, stored as a GeoDataFrame with geospatial coordinates and attributes.
+    \item \textbf{Edges}: Represent road segments between nodes, stored as a GeoDataFrame with geometry and other metadata.
+\end{itemize}
+
+\subsection{Data Preprocessing}
+For accurate simulation, all necessary parameter details must be added beforehand to the nodes or edges, depending on their intended usage. For instance, fields like \texttt{avg\_rainfall\_\{month\}} should already exist in the data to enable grouped parameter processing. These parameters provide the foundational data for further normalization and simulation processes.
+
+\subsection{Path Generation}
+Paths in the graph are generated using a three-step process: BFS-based layering, random walk algorithms, and categorization.
+
+\subsubsection{BFS Layering}
+\begin{enumerate}
+    \item Start a Breadth-First Search (BFS) from an initial node $v_0$.
+    \item Organize nodes at distance $i$ into layer $L_n$, where $i \geq 1$. Each layer contains nodes reachable from the start node at a specific distance.
+    \item Optionally, truncate the BFS after a fixed number of layers to limit the search space.
+\end{enumerate}
+
+\subsubsection{Random Walk Path Generation}
+\begin{enumerate}
+    \item The random walk begins at $v_0$ (starting node).
+    \item Select a vertex $v_1$ from $L_1$ (the first layer) that is adjacent to $v_0$.
+    \item Proceed to a vertex $v_2$ in $L_2$, adjacent to $v_1$, and continue this process for successive layers.
+    \item The walk terminates when no valid nodes remain in the next layer or when a predefined maximum path length is reached.
+    \item Each path is unique, as vertices are not revisited within the same walk.
+\end{enumerate}
+
+\subsubsection{Categorization of Paths}
+\begin{enumerate}
+    \item Compute the length of each path using the road segment lengths (edge metadata).
+    \item Classify paths into categories based on predefined length ranges:
+    \begin{itemize}
+        \item \textbf{Small}: 10,000 to 20,000 meters
+        \item \textbf{Medium}: 20,000 to 80,000 meters
+        \item \textbf{Large}: 80,000 to 250,000 meters
+        \item \textbf{XL}: 250,000 to 750,000 meters
+    \end{itemize}
+    \item Randomly sample a fixed number of paths from each category for further analysis.
+\end{enumerate}
+
+\subsection{Path Storage and Retrieval}
+\subsubsection{Storage in MongoDB}
+\begin{itemize}
+    \item Paths are stored as documents in a MongoDB collection (\texttt{paths\_tree}).
+    \item Each document contains:
+    \begin{itemize}
+        \item \textbf{Route}: A list of node IDs forming the path
+        \item \textbf{Start Node}: The node from which the path begins
+        \item \textbf{Route Length}: Total length of the path
+        \item \textbf{Category}: The length-based category of the path
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Reconstruction}
+\begin{itemize}
+    \item Paths are retrieved from MongoDB and applied to the graph stored in GraphML format.
+    \item Fetched paths are converted into GeoDataFrames using the node and edge geospatial data for further processing.
+\end{itemize}
+
+\subsection{Types of Parameters}
+Parameters influencing the simulation are categorized into two types:
+
+\subsubsection{Grouped Parameters}
+Grouped parameters require pre-existing grouped data in nodes or edges. These parameters are processed as follows:
+
+\begin{enumerate}
+    \item \textbf{Grouping}: Data is grouped based on a predefined logic (e.g., seasonal rainfall averages).
+    \item \textbf{Statistics}: The mean and standard deviation for each group are calculated.
+    \item \textbf{Normalization}: The grouped data is normalized using the sigmoid function to standardize its values.
+\end{enumerate}
+
+This approach is commonly used for parameters like seasonal rainfall and visibility, which are aggregated and averaged over specific time periods or regions.
+
+\subsubsection{Ungrouped Parameters}
+Ungrouped parameters are directly normalized without requiring any prior grouping. These parameters exist as single values per node or edge (e.g., \texttt{betweenness\_centrality}). The process involves:
+
+\begin{enumerate}
+    \item \textbf{Direct Normalization}: The parameter values are normalized using their mean and standard deviation across the dataset.
+    \item \textbf{Usage}: These normalized values are then directly applied in the simulation.
+\end{enumerate}
+
+\subsection{Point Generation Algorithm}
+The point generation process is a key component of this simulation framework. It focuses on generating high-resolution geospatial points along edges of the graph while incorporating dynamic environmental and traffic parameters. A \textbf{segment} is defined as a particular edge divided into a specific interval in meters.
+
+\subsubsection{Defining Y}
+Initially, Y is set based on the vehicle type and a predefined sampling rate. For instance, vehicles such as cars or trucks have different base rates for generating points along an edge segment. This base Y value (denoted as $Y_0$) reflects the sampling density and is adjusted dynamically based on parameter changes during the simulation.
+
+\subsubsection{Adjusting Y Dynamically}
+The adjustment of Y is influenced by changes in grouped and global parameters:
+
+\begin{enumerate}
+    \item \textbf{Grouped Parameters}:
+    \begin{itemize}
+        \item Each point along an edge is assigned interpolated values for grouped parameters (e.g., rainfall, visibility) based on their location relative to the edge's start and end nodes.
+        \item For each parameter, the difference ($\Delta$) between the current and previous values is calculated.
+        \item A coefficient specific to the parameter (sampled from a defined range) is applied to $\Delta$ to compute a multiplicative factor.
+        \item This factor modifies the base $Y_0$, increasing or decreasing the sampling density in response to environmental variability.
+    \end{itemize}
+
+    \item \textbf{Global Parameters}:
+    \begin{itemize}
+        \item Global parameters, such as traffic density, are similarly incorporated by comparing their current and previous values.
+        \item A traffic-specific coefficient (derived from edge attributes, such as betweenness centrality) is applied to adjust Y.
+        \item The result reflects traffic dynamics, increasing sampling density during high traffic periods.
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{Mathematical Formula for Adjusting Y}
+The adjusted Y, denoted as $Y_{adjusted}$, is computed iteratively for each point along a segment using the formula:
+
+\[
+Y_{adjusted} = Y_0 \times \prod_{i} \big( 1 + C_i \times |\Delta_i| \big)
+\]
+
+Where:
+\begin{itemize}
+    \item $Y_0$: Base sampling rate for the vehicle type
+    \item $C_i$: Coefficient for parameter $i$
+    \item $\Delta_i$: Change in the parameter $i$ from the previous point
+    \item The product iterates over all grouped and global parameters influencing the point
+\end{itemize}
+
+\subsection{Time Tracker}
+The framework also includes a \textbf{TimeTracker} class to manage time dynamically throughout the simulation. This class is responsible for:
+
+\subsubsection{Tracking Elapsed Time}
+\begin{itemize}
+    \item The \texttt{TimeTracker} keeps track of the total elapsed time across segments of a route.
+    \item It ensures that the current hour is updated as the simulation progresses.
+\end{itemize}
+
+\subsubsection{Traffic Updates}
+\begin{itemize}
+    \item As the time progresses, the current hour affects global parameters such as traffic density, which may vary hourly.
+\end{itemize}
+
+\subsubsection{Functionality}
+\begin{itemize}
+    \item \textbf{Initialization}:
+    \begin{itemize}
+        \item The \texttt{TimeTracker} starts with a given initial hour.
+        \item It maintains a cumulative record of elapsed time in minutes.
+    \end{itemize}
+
+    \item \textbf{Updating Time}:
+    \begin{itemize}
+        \item The \texttt{update\_time} method takes the time for a segment (in minutes) as input and updates both the total elapsed time and the current hour.
+        \item It ensures that the current hour wraps around (modulo 24) to reflect a 24-hour clock.
+    \end{itemize}
+
+    \item \textbf{Total Hours}:
+    \begin{itemize}
+        \item The total time traveled (in hours) can be retrieved as a float property, providing a continuous measure of time elapsed.
+    \end{itemize}
+\end{itemize}
+
+\section{Results}
+\begin{itemize}
+    \item The simulation produces high-resolution geospatial datasets in GeoJSON format.
+    \item Generated points are visualized alongside edges for validation.
+\end{itemize}
+
+\section{Conclusion}
+This framework provides a modular approach to geospatial data enrichment. By integrating traffic, environmental, and structural parameters, it enables realistic simulations for vehicle dynamics. Future work may include extending parameter types and optimizing computational efficiency.
+
+
 %%
 %% Bibliography
 %%
 
-%% Please use bibtex, 
-\section{Introduction}
+%% Please use bibtex,
 
 
 \bibliography{references}
