@@ -1,18 +1,17 @@
 import numpy as np
-import pandas as pd
 import geopandas as gpd
 import osmnx as ox
 from bson import ObjectId
+from matplotlib import pyplot as plt
 from pymongo import MongoClient
-import random
 
 from time_tracker import TimeTracker
-from parameter import Parameter
+from parameter import ParameterProcessor, sigmoid_normalization
 from point_generator import PointGenerator
 
 # Constants
 INTERVAL = 1000
-INITIAL_SAMPLING_RATE = {"car": 4 * (INTERVAL / 500), "truck": 6 * (INTERVAL / 500), "motorcycle": 5 * (INTERVAL / 500)}
+INITIAL_SAMPLING_RATE = {"car": 2 * (INTERVAL / 500), "truck": 3 * (INTERVAL / 500), "motorcycle": 2.5 * (INTERVAL / 500)}
 ANGLE_AND_RADIUS_LIMIT = {"car": (15, 75), "truck": (10, 45), "motorcycle": (20, 100)}
 SEASONS = {
     'winter': ['November', 'December', 'January', 'February'],
@@ -28,136 +27,69 @@ TRAFFIC_VALUES = {
 }
 
 
-def convert_to_numeric(df, columns):
-    """
-    Convert specified columns to numeric, handling errors.
-
-    Args:
-        df (pd.DataFrame): DataFrame to modify
-        columns (list): Columns to convert to numeric
-    """
-    for col in columns:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
-
-
 class Simulation:
-    def __init__(self, nodes, edges, chosen_vehicle_type, chosen_season):
+    def __init__(self, nodes, edges, chosen_vehicle_type, chosen_season, chosen_time):
         self.nodes = nodes
         self.edges = edges
         self.vehicle_type = chosen_vehicle_type
         self.season = chosen_season
+        self.chosen_time = chosen_time
 
-    def normalize_parameters(self, param_name):
-        """
-        Normalize a parameter for all nodes based on seasonal data.
-        """
-        season_months = SEASONS[self.season]
-        param_columns = [f"avg_{param_name}_{month}" for month in season_months]
-        values = self.nodes[param_columns].mean(axis=1).values
-        parameter = Parameter(values)
-        return parameter.normalize()
-
-    def generate_Y_values(self, nodes, edge, time_tracker, params, betweenness_centrality_mean,
-                          betweenness_centrality_std):
-        """
-        Generalized function to generate Y-values based on a list of parameters (e.g., rainfall, visibility, traffic).
-        """
-        gdf_4326_gen = PointGenerator(edge, INTERVAL).generate_intermediate_points()
-
-        # Normalize and initialize parameter values
-        normalized_params = {}
-        for param_name, values in params.items():
-            param = Parameter(values)
-            normalized_params[param_name] = param.normalize()
-
-        # Initialize previous values for parameters
-        prev_values = {param_name: 0.5 for param_name in params.keys()}
-
-        # Initial sampling rate for the chosen vehicle type
-        Yo = INITIAL_SAMPLING_RATE[self.vehicle_type]
-        Y_values = []
-
-        for idx, point in gdf_4326_gen.iterrows():
-            current_hour = time_tracker.current_hour
-
-            # Get current values for each parameter
-            current_values = {
-                param_name: gdf_4326_gen.get(f"{param_name}_{self.season}", pd.Series([0.5] * len(gdf_4326_gen)))[idx]
-                for param_name in params.keys()
-            }
-
-            # Get current traffic factor
-            traffic_factor = normalized_params.get("traffic", [0.5] * 24)[current_hour]
-
-            # Calculate impact factors
-            Yo_adjusted = Yo
-            if all(val is not None for val in prev_values.values()):
-                adjustments = []
-
-                for param_name, prev_value in prev_values.items():
-                    delta = current_values[param_name] - prev_value
-
-                    # Random coefficients for impact calculation
-                    coefficient = np.random.uniform(0.02, 0.10)
-
-                    # Calculate factor adjustments
-                    factor = (1 + coefficient * abs(delta)) if delta >= 0 else (1 - coefficient * abs(delta))
-                    adjustments.append(factor)
-
-                # Traffic factor adjustment
-                delta_T = traffic_factor - prev_values.get("traffic", 0.5)
-                traffic_coefficient = 1 / (1 + np.exp(-(float(
-                    edge["betweenness_centrality"]) - betweenness_centrality_mean) / betweenness_centrality_std))
-                traffic_factor_adjustment = (1 + traffic_coefficient * abs(delta_T)) if delta_T >= 0 else (
-                            1 - traffic_coefficient * abs(delta_T))
-
-                # Combine all adjustments
-                adjustments.append(traffic_factor_adjustment)
-
-                for factor in adjustments:
-                    Yo_adjusted *= factor
-
-                # Calculate final Y value and segment time
-                speed_kmph = 60 / Yo_adjusted  # Simplified speed calculation
-                segment_time = ((INTERVAL / 1000) / speed_kmph) * 60
-                time_tracker.update_time(segment_time)
-
-                Y_values.append(Yo_adjusted)
-                Yo = Yo_adjusted
-
-            # Update previous values
-            prev_values.update(current_values)
-
-        return [round(value) for value in Y_values]
 
     def simulate(self):
         """
         Run the main simulation for all edges.
         """
         time_tracker = TimeTracker(initial_hour=0)
-        convert_to_numeric(self.edges, ["betweenness_centrality"])
-        betweenness_centrality_mean = self.edges["betweenness_centrality"].mean()
-        betweenness_centrality_std = self.edges["betweenness_centrality"].std()
+
+        #Add all the processor and process the raw data
+        rainfall_processor = ParameterProcessor(self.nodes,"rainfall", groups=SEASONS, type="grouped")
+        rainfall_processor.process()
+
+        visibility_processor = ParameterProcessor(self.nodes,"visibility", groups=SEASONS, type="grouped")
+        visibility_processor.process()
+
+        betweenness_centrality_processor = ParameterProcessor(self.edges,"betweenness_centrality", type="ungrouped")
+        betweenness_centrality_processor.process()
+
+        traffic_values = TRAFFIC_VALUES
+        traffic_mean = np.mean(list(traffic_values.values()))
+        traffic_std = np.std(list(traffic_values.values()))
+
+        normalized_traffic = {
+            hour: sigmoid_normalization(value, traffic_mean, traffic_std)
+            for hour, value in traffic_values.items()
+        }
 
         all_points = []
 
         for index, edge in self.edges.iterrows():
+            #Generate intermediate points
+            generator = PointGenerator(edge, INTERVAL, INITIAL_SAMPLING_RATE, self.vehicle_type)
+            gdf_4326_gen = generator.generate_intermediate_points()
+
             params = {
-                "rainfall": [random.uniform(0, 1) for _ in range(len(self.edges))],
-                "visibility": [random.uniform(0, 1) for _ in range(len(self.edges))],
-                "traffic": [random.randint(0, 100) for _ in range(24)]  # Example traffic values
+                'grouped': [
+                    {
+                        "name": 'rainfall',
+                        "grouping_key": self.season,
+                        "constant" : (0.02, 0.10),
+                        "average_effect" : True
+                    },
+                    {
+                        "name": 'visibility',
+                        "grouping_key": self.season,
+                        "constant" : (0.04, 0.09),
+                        "average_effect" : True
+                    }
+                ],
+                'global': [{"name":'traffic', "constant": normalized_traffic, "average_effect": False}],
             }
 
-            Y_values = self.generate_Y_values(
-                nodes=self.nodes,
-                edge=edge,
-                time_tracker=time_tracker,
-                params=params,
-                betweenness_centrality_mean=betweenness_centrality_mean,
-                betweenness_centrality_std=betweenness_centrality_std
-            )
+            gdf_4326_gen = generator.assign_characteristics(gdf_4326_gen, self.nodes, edge, params)
+            Y_values = generator.generate_Y_values(gdf_4326_gen, params, time_tracker)
+            expanded_points = generator.expand_points(Y_values, self.vehicle_type, ANGLE_AND_RADIUS_LIMIT)
 
-            expanded_points = PointGenerator(edge, INTERVAL).expand_points(Y_values, self.vehicle_type, ANGLE_AND_RADIUS_LIMIT)
             for point in expanded_points['geometry']:
                 all_points.append(point)
             # print(f"Edge {index} expanded points:", expanded_points)
@@ -178,13 +110,13 @@ nodes, _ = ox.convert.graph_to_gdfs(graph)
 edges = ox.routing.route_to_gdf(graph, route)
 print("Graph Loaded!")
 
-simulation = Simulation(nodes, edges, chosen_vehicle_type="car", chosen_season="spring")
+simulation = Simulation(nodes, edges, chosen_vehicle_type="car", chosen_season="spring", chosen_time=0)
 points = simulation.simulate()
 
 gdf_point = gpd.GeoDataFrame(geometry=points)
 
-# fig1, ax = plt.subplots(figsize=(10, 10))
-# edges.plot(ax=ax, color='blue')
-# gdf_point.plot(ax=ax, color='red', marker='x', label='Expanded Points')
-# plt.legend()
-# plt.show()
+fig1, ax = plt.subplots(figsize=(10, 10))
+edges.plot(ax=ax, color='blue')
+gdf_point.plot(ax=ax, color='red', marker='x', label='Expanded Points')
+plt.legend()
+plt.show()
