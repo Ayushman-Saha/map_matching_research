@@ -2,7 +2,6 @@ import random
 from math import floor
 
 import numpy as np
-import pandas as pd
 from geopy.distance import distance
 from pyproj import Transformer, CRS
 from shapely.geometry.point import Point
@@ -190,8 +189,7 @@ class PointGenerator:
                     distances.append(point_distance)
 
                 for distance_m in distances:
-                    random_bearing = random.uniform(-angle_and_radius_limit[vehicle_type][0],
-                                                    angle_and_radius_limit[vehicle_type][0])
+                    random_bearing = random.uniform(0,360)
                     new_point = edge_projected.geometry.iloc[0].interpolate(distance_m)
 
                     #Reproject the generated points back to lat and lng

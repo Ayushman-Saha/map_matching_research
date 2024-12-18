@@ -61,30 +61,30 @@ class Simulation:
             for hour, value in traffic_values.items()
         }
 
+        params = {
+            'grouped': [
+                {
+                    "name": 'rainfall',
+                    "grouping_key": self.season,
+                    "constant": (0.02, 0.10),
+                    "average_effect": True
+                },
+                {
+                    "name": 'visibility',
+                    "grouping_key": self.season,
+                    "constant": (0.04, 0.09),
+                    "average_effect": True
+                }
+            ],
+            'global': [{"name": 'traffic', "constant": normalized_traffic, "average_effect": False}],
+        }
+
         all_points = []
 
         for index, edge in self.edges.iterrows():
             #Generate intermediate points
             generator = PointGenerator(edge, INTERVAL, INITIAL_SAMPLING_RATE, self.vehicle_type)
             gdf_4326_gen = generator.generate_intermediate_points()
-
-            params = {
-                'grouped': [
-                    {
-                        "name": 'rainfall',
-                        "grouping_key": self.season,
-                        "constant" : (0.02, 0.10),
-                        "average_effect" : True
-                    },
-                    {
-                        "name": 'visibility',
-                        "grouping_key": self.season,
-                        "constant" : (0.04, 0.09),
-                        "average_effect" : True
-                    }
-                ],
-                'global': [{"name":'traffic', "constant": normalized_traffic, "average_effect": False}],
-            }
 
             gdf_4326_gen = generator.assign_characteristics(gdf_4326_gen, self.nodes, edge, params)
             Y_values = generator.generate_Y_values(gdf_4326_gen, params, time_tracker)
@@ -114,6 +114,7 @@ simulation = Simulation(nodes, edges, chosen_vehicle_type="car", chosen_season="
 points = simulation.simulate()
 
 gdf_point = gpd.GeoDataFrame(geometry=points)
+gdf_point.to_file("final_expanded_points.geojson", driver="GeoJSON")
 
 fig1, ax = plt.subplots(figsize=(10, 10))
 edges.plot(ax=ax, color='blue')
