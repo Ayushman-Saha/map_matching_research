@@ -98,6 +98,7 @@ class PointGenerator:
         prev_traffic_factor = 0.5
         Yo = self.initial_sampling_rate[self.vehicle_type]
         Y_values = []
+        speed_values = []
 
         for idx, point in gdf_4326_gen.iterrows():
 
@@ -150,7 +151,7 @@ class PointGenerator:
 
             # Calculate speed and time
             speed_kmph = self.calculate_speed(Yo_adjusted)
-            print(speed_kmph)
+            speed_values.append(speed_kmph)
             segment_time = ((self.interval / 1000) / speed_kmph) * 60
             time_tracker.update_time(segment_time)
             Y_values.append(Yo_adjusted)
@@ -161,7 +162,7 @@ class PointGenerator:
             prev_global_values.update(current_global_values)
             prev_traffic_factor = traffic_factor
 
-        return [round(value) for value in Y_values]
+        return [round(value) for value in Y_values], speed_values
 
     def expand_points(self, y_values, vehicle_type, angle_and_radius_limit):
         """

@@ -75,7 +75,7 @@ class ParameterProcessor:
             self.data[f"{self.name}_std_{group_name}"] = group_std
 
         # Drop intermediate columns
-        self.cleanup_intermediate_columns(parameter_columns)
+        # self.cleanup_intermediate_columns(parameter_columns)
 
     def process_ungrouped(self):
         """

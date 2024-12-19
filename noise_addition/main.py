@@ -1,10 +1,7 @@
 import numpy as np
-import geopandas as gpd
 import osmnx as ox
-from bson import ObjectId
-from matplotlib import pyplot as plt
 from pymongo import MongoClient
-
+import random
 from time_tracker import TimeTracker
 from parameter import ParameterProcessor, sigmoid_normalization
 from point_generator import PointGenerator
@@ -26,7 +23,6 @@ TRAFFIC_VALUES = {
     19: 950, 20: 800, 21: 650, 22: 550, 23: 500
 }
 
-
 class Simulation:
     def __init__(self, nodes, edges, chosen_vehicle_type, chosen_season, chosen_time):
         self.nodes = nodes
@@ -35,21 +31,20 @@ class Simulation:
         self.season = chosen_season
         self.chosen_time = chosen_time
 
-
     def simulate(self):
         """
         Run the main simulation for all edges.
         """
-        time_tracker = TimeTracker(initial_hour=0)
+        time_tracker = TimeTracker(initial_hour=self.chosen_time)
 
-        #Add all the processor and process the raw data
-        rainfall_processor = ParameterProcessor(self.nodes,"rainfall", groups=SEASONS, type="grouped")
+        # Add processors and process raw data
+        rainfall_processor = ParameterProcessor(self.nodes, "rainfall", groups=SEASONS, type="grouped")
         rainfall_processor.process()
 
-        visibility_processor = ParameterProcessor(self.nodes,"visibility", groups=SEASONS, type="grouped")
+        visibility_processor = ParameterProcessor(self.nodes, "visibility", groups=SEASONS, type="grouped")
         visibility_processor.process()
 
-        betweenness_centrality_processor = ParameterProcessor(self.edges,"betweenness_centrality", type="ungrouped")
+        betweenness_centrality_processor = ParameterProcessor(self.edges, "betweenness_centrality", type="ungrouped")
         betweenness_centrality_processor.process()
 
         traffic_values = TRAFFIC_VALUES
@@ -82,42 +77,65 @@ class Simulation:
         all_points = []
 
         for index, edge in self.edges.iterrows():
-            #Generate intermediate points
+            # Generate intermediate points
             generator = PointGenerator(edge, INTERVAL, INITIAL_SAMPLING_RATE, self.vehicle_type)
             gdf_4326_gen = generator.generate_intermediate_points()
 
             gdf_4326_gen = generator.assign_characteristics(gdf_4326_gen, self.nodes, edge, params)
-            Y_values = generator.generate_Y_values(gdf_4326_gen, params, time_tracker)
+            Y_values, speed_values = generator.generate_Y_values(gdf_4326_gen, params, time_tracker)
             expanded_points = generator.expand_points(Y_values, self.vehicle_type, ANGLE_AND_RADIUS_LIMIT)
 
             for point in expanded_points['geometry']:
                 all_points.append(point)
-            # print(f"Edge {index} expanded points:", expanded_points)
-        return all_points
 
-#Loading data
+        return all_points, time_tracker.current_hour, speed_values
 
-# Connect to MongoDB and retrieve path
+
+# MongoDB connection
 mongo_string = "mongodb://sih24:sih24@localhost:27018/sih24?authSource=sih24"
 client = MongoClient(mongo_string)
 collection = client['map_matching']['paths_tree']
-paths = collection.find_one({"_id": ObjectId("675ea5f7ebb710f20b8fd98d")})
-route = paths["route"]
 print("Connected to MongoDB!")
 
-graph = ox.load_graphml("../data/merged_graph_gujarat.graphml")
+# Load the road network graph
+graph = ox.load_graphml("../data/merged_graph.graphml")
 nodes, _ = ox.convert.graph_to_gdfs(graph)
-edges = ox.routing.route_to_gdf(graph, route)
 print("Graph Loaded!")
 
-simulation = Simulation(nodes, edges, chosen_vehicle_type="car", chosen_season="spring", chosen_time=0)
-points = simulation.simulate()
+# Process each document in the collection
+for index, doc in enumerate(collection.find()):
 
-gdf_point = gpd.GeoDataFrame(geometry=points)
-gdf_point.to_file("final_expanded_points.geojson", driver="GeoJSON")
+    try:
+        route = doc["route"]
+        doc_id = doc["_id"]
 
-fig1, ax = plt.subplots(figsize=(10, 10))
-edges.plot(ax=ax, color='blue')
-gdf_point.plot(ax=ax, color='red', marker='x', label='Expanded Points')
-plt.legend()
-plt.show()
+        # Randomly choose vehicle type, season, and chosen time
+        chosen_vehicle_type = random.choice(["car", "truck", "motorcycle"])
+        chosen_season = random.choice(["winter", "spring", "summer", "autumn"])
+        chosen_time = random.randint(0, 23)
+
+        # Convert route to GeoDataFrame
+        edges = ox.routing.route_to_gdf(graph, route)
+
+        # Run the simulation
+        simulation = Simulation(nodes, edges, chosen_vehicle_type, chosen_season, chosen_time)
+        points, end_time, speed_values = simulation.simulate()
+
+        # Prepare trajectory data
+        trajectory = {
+            "vehicle_type": chosen_vehicle_type,
+            "season": chosen_season,
+            "chosen_time": chosen_time,
+            "end_time": end_time,
+            "coordinates": [point.coords[0] for point in points],
+            "speed": speed_values
+        }
+
+        # Update the document with the new trajectory field
+        collection.update_one({"_id": doc_id}, {"$set": {"trajectory": trajectory}})
+        # print(trajectory)
+        print(f"Processed document {index} with _id: {doc_id}")
+    except Exception as exception:
+        print(f"Failed to process document {index} : {exception}")
+
+print("All documents processed!")
