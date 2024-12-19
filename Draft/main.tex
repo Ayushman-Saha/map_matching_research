@@ -113,7 +113,7 @@ fills the void of lack of datasets.
 
 \section{Introduction}
 \subsection{Overview}
-The simulation framework is designed to process geospatial data and generate enriched datasets by simulating vehicle trajectories on a predefined graph. The system leverages external data sources, including MongoDB and OpenStreetMap, and incorporates various environmental factors like rainfall, visibility, and traffic conditions. The code is modular, divided across three files:
+The simulation framework is designed to process geospatial data and generate enriched datasets by simulating vehicle trajectories on a predefined graph. The system leverages OpenStreetMap data and incorporates various environmental factors like rainfall, visibility, and traffic conditions. The code is modular, divided across three files:
 
 \begin{enumerate}
     \item \textbf{main.py}: Orchestrates the simulation process.
@@ -129,6 +129,21 @@ The graph used for the simulation represents the primary highways and trucking r
 \begin{itemize}
     \item \textbf{Nodes}: Represent junctions or intersections on the graph, stored as a GeoDataFrame with geospatial coordinates and attributes.
     \item \textbf{Edges}: Represent road segments between nodes, stored as a GeoDataFrame with geometry and other metadata.
+\end{itemize}
+
+Mathematically, the graph $G$ is defined as:
+
+\[G = (V, E)\]
+
+where:
+\begin{itemize}
+    \item $V = \{v_1, v_2, ..., v_n\}$ is the set of vertices (nodes) representing road intersections, with each $v_i$ defined as:
+    \[v_i = (lat_i, lon_i, A_i)\]
+    where $lat_i, lon_i$ are geographical coordinates and $A_i$ is the set of attributes for node $i$
+    
+    \item $E = \{e_1, e_2, ..., e_m\}$ is the set of edges representing road segments, with each $e_k$ defined as:
+    \[e_k = (v_i, v_j, G_k, P_k)\]
+    where $v_i, v_j \in V$ are connected nodes, $G_k$ is the geometry of the edge, and $P_k$ is the set of parameters associated with the edge
 \end{itemize}
 
 \subsection{Data Preprocessing}
