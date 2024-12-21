@@ -1,53 +1,91 @@
 import osmnx as ox
 import pandas as pd
 import numpy as np
-from geopy.distance import geodesic
+from sklearn.neighbors import BallTree
 
 # Load the graphml file and station data
-G = ox.load_graphml("../data/merged_graph_gujarat.graphml")
-stations = pd.read_csv("station_visibility_summary.csv")
+G = ox.load_graphml("../data/india_highways.graphml")
+stations = pd.read_csv("../data/monthly_station_metrics.csv")
 stations.columns = stations.columns.str.strip()  # Clean column names
 
+# Extract node coordinates into arrays (in radians for BallTree)
+node_coords = np.array([(data['y'], data['x']) for node, data in G.nodes(data=True)])
+node_coords_rad = np.radians(node_coords)
+
+# Extract station coordinates into arrays (in radians for BallTree)
+station_coords = stations[['latitude', 'longitude']].drop_duplicates().to_numpy()
+station_coords_rad = np.radians(station_coords)
+
+# Build a BallTree for fast spatial queries
+node_tree = BallTree(node_coords_rad, metric='haversine')
+
+# Constants
+EARTH_RADIUS = 6371.0  # Radius of Earth in kilometers
 total_nodes = set(G.nodes)
 station_assigned_nodes = set()
 
-# Helper function to calculate distance between two lat/lon points in km
-def haversine(coord1, coord2):
-    return geodesic(coord1, coord2).km
+# List of months for column names
+MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December']
 
-# Function to assign weather data to nodes for a given radius
-def assign_weather_data(radius):
+
+def initialize_weather_attributes(node_data):
+    """Initialize monthly weather attributes for a node"""
+    for month in MONTHS:
+        for metric in ['visibility', 'rainfall', 'cloud_cover']:
+            sum_key = f'{metric}_sum_{month}'
+            node_data[sum_key] = 0
+        node_data[f'station_count_{month}'] = 0
+
+
+# Function to assign weather data to nodes within a radius
+def assign_weather_data_for_radius(radius_km):
     current_radius_assigned = set()
+    radius_rad = radius_km / EARTH_RADIUS  # Convert km to radians
 
-    for _, station in stations.iterrows():
-        station_coord = (station['latitute'], station['longitude'])
+    # Group stations by unique lat/lon pairs
+    unique_locations = stations.drop_duplicates(subset=['latitude', 'longitude'])
 
-        for node, node_data in G.nodes(data=True):
-            node_coord = (node_data['y'], node_data['x'])
+    for idx, location in unique_locations.iterrows():
+        # Query BallTree for nodes within the radius from the station
+        station_coord = np.radians([location['latitude'], location['longitude']]).reshape(1, -1)
+        node_indices = node_tree.query_radius(station_coord, r=radius_rad)[0]
 
-            if haversine(station_coord, node_coord) <= radius:
-                if 'visibility_sum' in node_data:
-                    G.nodes[node]['visibility_sum'] += station['avg_visiblity']
-                    G.nodes[node]['rainfall_sum'] += station['avg rainfall']
-                    G.nodes[node]['cloud_cover_sum'] += station['avg_cloud_cover']
-                    G.nodes[node]['station_count'] += 1
-                else:
-                    G.nodes[node]['visibility_sum'] = station['avg_visiblity']
-                    G.nodes[node]['rainfall_sum'] = station['avg rainfall']
-                    G.nodes[node]['cloud_cover_sum'] = station['avg_cloud_cover']
-                    G.nodes[node]['station_count'] = 1
+        # Get all monthly data for this station location
+        station_monthly_data = stations[
+            (stations['latitude'] == location['latitude']) &
+            (stations['longitude'] == location['longitude'])
+            ]
 
-                current_radius_assigned.add(node)
+        # Assign weather data to the found nodes
+        for node_idx in node_indices:
+            node = list(G.nodes)[node_idx]
 
+            # Initialize node attributes if not already present
+            if 'visibility_sum_January' not in G.nodes[node]:
+                initialize_weather_attributes(G.nodes[node])
+
+            # Process each month's data
+            for _, monthly_data in station_monthly_data.iterrows():
+                month = monthly_data['Month']
+                # Update sums for this month
+                G.nodes[node][f'visibility_sum_{month}'] += monthly_data['avg_visibility']
+                G.nodes[node][f'rainfall_sum_{month}'] += monthly_data['avg_daily_rainfall']
+                G.nodes[node][f'cloud_cover_sum_{month}'] += monthly_data['avg_cloud_cover']
+                G.nodes[node][f'station_count_{month}'] += 1
+
+            current_radius_assigned.add(node)
+
+    # Update the global set of assigned nodes
     station_assigned_nodes.update(current_radius_assigned)
-
     return len(total_nodes - station_assigned_nodes) == 0  # Return if all nodes are assigned
+
 
 # Phase 1: Coarse search with radii from 100 to 200 km (step = 10 km)
 print("Phase 1: Coarse search")
 for radius in range(100, 201, 10):
     print(f"Trying with radius: {radius} km")
-    if assign_weather_data(radius):
+    if assign_weather_data_for_radius(radius):
         print(f"All nodes assigned data with radius: {radius} km")
         break
 else:
@@ -61,7 +99,7 @@ print(f"\nPhase 2: Refining search around {radius} km")
 for refined_radius in range(refined_start, refined_end + 1, 5):
     print(f"Trying with radius: {refined_radius} km")
     station_assigned_nodes.clear()  # Reset assigned nodes for refinement
-    if assign_weather_data(refined_radius):
+    if assign_weather_data_for_radius(refined_radius):
         print(f"All nodes assigned data with radius: {refined_radius} km")
         break
 
@@ -73,23 +111,27 @@ print(f"\nPhase 3: Final refinement around {refined_radius} km")
 for final_radius in range(final_start, final_end + 1, 1):
     print(f"Trying with radius: {final_radius} km")
     station_assigned_nodes.clear()  # Reset assigned nodes for final refinement
-    if assign_weather_data(final_radius):
+    if assign_weather_data_for_radius(final_radius):
         print(f"All nodes assigned data with radius: {final_radius} km")
         break
 
 # Calculate final averages and clean up intermediate fields
 for node, node_data in G.nodes(data=True):
-    if 'station_count' in node_data:
-        G.nodes[node]['avg_visibility'] = node_data['visibility_sum'] / node_data['station_count']
-        G.nodes[node]['avg_rainfall'] = node_data['rainfall_sum'] / node_data['station_count']
-        G.nodes[node]['avg_cloud_cover'] = node_data['cloud_cover_sum'] / node_data['station_count']
+    for month in MONTHS:
+        station_count = node_data.get(f'station_count_{month}', 0)
+        if station_count > 0:
+            # Calculate averages for each month
+            G.nodes[node][f'avg_visibility_{month}'] = node_data[f'visibility_sum_{month}'] / station_count
+            G.nodes[node][f'avg_rainfall_{month}'] = node_data[f'rainfall_sum_{month}'] / station_count
+            G.nodes[node][f'avg_cloud_cover_{month}'] = node_data[f'cloud_cover_sum_{month}'] / station_count
 
-        del G.nodes[node]['visibility_sum']
-        del G.nodes[node]['rainfall_sum']
-        del G.nodes[node]['cloud_cover_sum']
-        del G.nodes[node]['station_count']
+            # Clean up intermediate sum fields
+            del G.nodes[node][f'visibility_sum_{month}']
+            del G.nodes[node][f'rainfall_sum_{month}']
+            del G.nodes[node][f'cloud_cover_sum_{month}']
+            del G.nodes[node][f'station_count_{month}']
 
 # Save the final graph with weather data
-ox.save_graphml(G, "india_highways_with_weather.graphml")
+ox.save_graphml(G, "india_highways_with_weather_monthly_optimized.graphml")
 
-print("Finished updating the graph with weather data.")
+print("Finished updating the graph with monthly weather data.")
