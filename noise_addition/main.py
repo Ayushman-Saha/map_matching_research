@@ -145,8 +145,8 @@ for index, doc in enumerate(collection.find()):
         }
 
         # Update the document with the new trajectory field
-        # collection.update_one({"_id": doc_id}, {"$set": {"trajectory": trajectory}})
-        print(trajectory)
+        collection.update_one({"_id": doc_id}, {"$set": {"trajectory": trajectory}})
+        # print(trajectory)
         print(f"Processed document {index} with _id: {doc_id}")
 
         # #Visualtion of the entire plot (Comment in production)
