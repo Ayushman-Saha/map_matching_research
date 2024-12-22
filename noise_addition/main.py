@@ -1,14 +1,17 @@
-import numpy as np
 import osmnx as ox
 from pymongo import MongoClient
 import random
+import geopandas as gpd
+import matplotlib.pyplot as plt
+
 from time_tracker import TimeTracker
-from parameter import ParameterProcessor, sigmoid_normalization
+from parameter import ParameterProcessor
 from point_generator import PointGenerator
 
 # Constants
 INTERVAL = 1000
-INITIAL_SAMPLING_RATE = {"car": 2 * (INTERVAL / 500), "truck": 3 * (INTERVAL / 500), "motorcycle": 2.5 * (INTERVAL / 500)}
+INITIAL_SAMPLING_RATE = {"car": 2 * (INTERVAL / 500), "truck": 3 * (INTERVAL / 500),
+                         "motorcycle": 2.5 * (INTERVAL / 500)}
 ANGLE_AND_RADIUS_LIMIT = {"car": (15, 75), "truck": (10, 45), "motorcycle": (20, 100)}
 SEASONS = {
     'winter': ['November', 'December', 'January', 'February'],
@@ -16,12 +19,14 @@ SEASONS = {
     'summer': ['June', 'July', 'August'],
     'autumn': ['September', 'October', 'November']
 }
-TRAFFIC_VALUES = {
-    0: 380, 1: 250, 2: 180, 3: 150, 4: 150, 5: 180, 6: 250,
-    7: 500, 8: 750, 9: 1000, 10: 1200, 11: 1150, 12: 1100,
-    13: 1000, 14: 920, 15: 900, 16: 900, 17: 1000, 18: 1050,
-    19: 950, 20: 800, 21: 650, 22: 550, 23: 500
-}
+
+# TRAFFIC_VALUES = {
+#     0: 380, 1: 250, 2: 180, 3: 150, 4: 150, 5: 180, 6: 250,
+#     7: 500, 8: 750, 9: 1000, 10: 1200, 11: 1150, 12: 1100,
+#     13: 1000, 14: 920, 15: 900, 16: 900, 17: 1000, 18: 1050,
+#     19: 950, 20: 800, 21: 650, 22: 550, 23: 500
+# }
+
 
 class Simulation:
     def __init__(self, nodes, edges, chosen_vehicle_type, chosen_season, chosen_time):
@@ -47,14 +52,8 @@ class Simulation:
         betweenness_centrality_processor = ParameterProcessor(self.edges, "betweenness_centrality", type="ungrouped")
         betweenness_centrality_processor.process()
 
-        traffic_values = TRAFFIC_VALUES
-        traffic_mean = np.mean(list(traffic_values.values()))
-        traffic_std = np.std(list(traffic_values.values()))
-
-        normalized_traffic = {
-            hour: sigmoid_normalization(value, traffic_mean, traffic_std)
-            for hour, value in traffic_values.items()
-        }
+        traffic_processor = ParameterProcessor(self.edges, "traffic", type="ungrouped", variants=[a for a in range(0, 24)])
+        traffic_processor.process()
 
         params = {
             'grouped': [
@@ -69,9 +68,23 @@ class Simulation:
                     "grouping_key": self.season,
                     "constant": (0.04, 0.09),
                     "average_effect": True
-                }
+                },
+
             ],
-            'global': [{"name": 'traffic', "constant": normalized_traffic, "average_effect": False}],
+            'global': [
+                {
+                    "name": 'betweenness_centrality',
+                    "constant": (0.5, 0.7),
+                    "variant": None,
+                    "average_effect": False
+                },
+                {
+                    "name": 'traffic',
+                    "constant": (0.5, 0.7),
+                    "variant": self.chosen_time,
+                    "average_effect": False
+                },
+            ],
         }
 
         all_points = []
@@ -132,9 +145,18 @@ for index, doc in enumerate(collection.find()):
         }
 
         # Update the document with the new trajectory field
-        collection.update_one({"_id": doc_id}, {"$set": {"trajectory": trajectory}})
-        # print(trajectory)
+        # collection.update_one({"_id": doc_id}, {"$set": {"trajectory": trajectory}})
+        print(trajectory)
         print(f"Processed document {index} with _id: {doc_id}")
+
+        # #Visualtion of the entire plot (Comment in production)
+        # final_gdf = gpd.GeoDataFrame(geometry=points, crs="EPSG:4326")
+        #
+        # fig, ax = plt.subplots(figsize=(10, 10))
+        # edges.plot(ax=ax, color='blue')
+        # final_gdf.plot(ax=ax, color='red', marker='x', label='Expanded Points')
+        # plt.legend()
+        # plt.show()
     except Exception as exception:
         print(f"Failed to process document {index} : {exception}")
 

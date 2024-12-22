@@ -20,7 +20,7 @@ def convert_to_numeric(df, columns):
 
 
 class ParameterProcessor:
-    def __init__(self, data, name, groups=None, type="grouped", location="nodes"):
+    def __init__(self, data, name, variants=None, groups=None, type="grouped", location="nodes"):
         """
         Processor for grouped and ungrouped parameters.
 
@@ -37,6 +37,7 @@ class ParameterProcessor:
         self.type = type
         self.location = location
         self.field_name = f"avg_{name}" if type == "grouped" else name  # Handle grouped vs ungrouped field names.
+        self.variants = variants
 
     def process(self):
         """
@@ -81,19 +82,41 @@ class ParameterProcessor:
         """
         Process ungrouped parameters (e.g., betweenness_centrality).
         """
-        convert_to_numeric(self.data, [self.field_name])
+        if self.variants is None:
+            convert_to_numeric(self.data, [self.field_name])
 
-        # Ensure the column exists
-        if self.field_name not in self.data.columns:
-            raise ValueError(f"Column {self.field_name} not found in the data.")
+            # Ensure the column exists
+            if self.field_name not in self.data.columns:
+                raise ValueError(f"Column {self.field_name} not found in the data.")
 
-        # Compute mean and standard deviation
-        column_data = self.data[self.field_name]
-        column_mean = column_data.mean()
-        column_std = column_data.std()
+            # Compute mean and standard deviation
+            column_data = self.data[self.field_name]
+            column_mean = column_data.mean()
+            column_std = column_data.std()
 
-        # Create normalized column
-        self.data[f"normalized_{self.name}"] = sigmoid_normalization(column_data, column_mean, column_std)
+            # Create normalized column
+            self.data[f"normalized_{self.name}"] = sigmoid_normalization(column_data, column_mean, column_std)
+        else:
+            for variant in self.variants:
+                # Construct the field name dynamically
+                variant_field_name = f"{self.field_name}_{variant}"
+                convert_to_numeric(self.data, [variant_field_name])
+
+                # Ensure the column exists
+                if variant_field_name not in self.data.columns:
+                    raise ValueError(f"Column {variant_field_name} not found in the data.")
+
+                # Compute mean and standard deviation for the current column
+                column_data = self.data[variant_field_name]
+                column_mean = column_data.mean()
+                column_std = column_data.std()
+
+                # Create normalized column for the current variant
+                normalized_column_name = f"normalized_{self.name}_{variant}"
+                if column_std != 0:
+                    self.data[normalized_column_name] = sigmoid_normalization(column_data, column_mean, column_std)
+                else:
+                    self.data[normalized_column_name] = column_data
 
     def cleanup_intermediate_columns(self, columns):
         """Drop the intermediate columns after processing."""
