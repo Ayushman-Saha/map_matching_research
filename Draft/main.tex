@@ -113,7 +113,8 @@
 %%
 %% The "title" command has an optional parameter,
 %% allowing the author to define a "short title" to be used in page headers.
-\title{The Name of the Title Is Hope}
+\title{The Framework to Generate Synthatic GPS Co-ordinates
+for Vehicular Movement}
 
 %%
 %% The "author" command and its associated commands are used to define
@@ -199,39 +200,25 @@
 \begin{abstract}
 There are hardly any publicly available data sets regarding real-world
 GPS movements of vehicles despite their potential applications such as
-map matching, map inferences, traffic detection, etc.
+map matching, map inferences, traffic detection, 
+to name a few.
 Even amongst the handful of data sets that are available, the quality
 of the dataset varies significantly, not to mention the different
 geographical area these datasets covers.
 We acknowledge the obstacles in collecting such that with
 privacy being the major concern. 
-To bypass these obstacles, we construct a synthetic data 
+To bypass these obstacles, we construct a 
+framework to generate synthetic data 
 regarding GPS coordinates of vehicular movements.
-Our dataset can be partitioned into two parts:
-In the first part, we provide a representation of roads in India
-using GPS co-ordinates and line-segments joining the 
-these co-ordinates.
-We extra the raw information from \texttt{openstreemaps}
-and process the data to make it accessible.
-In the second part, we present a dataset 
-in which each data point consists of series 
-of raw GPS co-ordinates.
-This data point can be interpreted as a vehicular moment. 
-The first part of our dataset consists of XYZ many GPS coordinates,
-XYZ many line segments which together constitutes road networks
-of XYZ kilometers.
-The second part contains XYZ many sequences corresponding
-to vehicular movements.
-These sequences are of varying complexities and charcters
-and together they span total of XYZ kilometers. 
-
-Our contribution consists not only of these datasets but also
-a systematic way of generatic these datasets. 
-Using our code, any researcher will be able to produce
+Using our framework, a researcher will be able to produce
 the similar dataset for any region in the world as long 
 as \texttt{openstreemaps} contains the corresponding GPS coordinates.
 We believe this systematic way of generating datasets
 fills the void of lack of datasets.
+We illustrate our approach by generating
+XYZ many sequences corresponding
+to vehicular movements in India with varying
+attributes.
 \end{abstract}
 
 %%
@@ -295,7 +282,8 @@ fills the void of lack of datasets.
 
 \section{Introduction}
 \subsection{Overview}
-The simulation framework is designed to process geospatial data and generate enriched datasets by simulating vehicle trajectories on a predefined graph. The system leverages OpenStreetMap data and incorporates various environmental factors like rainfall, visibility, and traffic conditions. The code is modular, divided across three files:
+The simulation framework is designed to process geospatial data and generate enriched datasets by simulating vehicle trajectories on a predefined graph.
+The system leverages OpenStreetMap data and incorporates various environmental factors like rainfall, visibility, and traffic conditions. The code is modular, divided across three files:
 
 \begin{enumerate}
     \item \textbf{main.py}: Orchestrates the simulation process.
@@ -487,6 +475,28 @@ The framework also includes a \textbf{TimeTracker} class to manage time dynamica
 
 \section{Conclusion}
 This framework provides a modular approach to geospatial data enrichment. By integrating traffic, environmental, and structural parameters, it enables realistic simulations for vehicle dynamics. Future work may include extending parameter types and optimizing computational efficiency.
+
+
+\section{Misc}
+
+Our dataset can be partitioned into two parts:
+In the first part, we provide a representation of roads in India
+using GPS co-ordinates and line-segments joining the 
+these co-ordinates.
+We extra the raw information from \texttt{openstreemaps}
+and process the data to make it accessible.
+In the second part, we present a dataset 
+in which each data point consists of series 
+of raw GPS co-ordinates.
+This data point can be interpreted as a vehicular moment. 
+The first part of our dataset consists of XYZ many GPS coordinates,
+XYZ many line segments which together constitutes road networks
+of XYZ kilometers.
+The second part contains XYZ many sequences corresponding
+to vehicular movements.
+These sequences are of varying complexities and charcters
+and together they span total of XYZ kilometers. 
+
 
 \newpage
 
