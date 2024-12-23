@@ -96,8 +96,10 @@ class PointGenerator:
         prev_values = {param['name']: 0.5 for param in params['grouped']}
         prev_global_values = {param['name']: 0.5 for param in params['global']}
         Yo = self.initial_sampling_rate[self.vehicle_type]
+
         Y_values = []
         speed_values = []
+        factor_values = {}
 
         for idx, point in gdf_4326_gen.iterrows():
 
@@ -117,6 +119,7 @@ class PointGenerator:
                 else:
                     current_global_values[param['name']] =  self.edge.get(f"normalized_{param['name']}")
 
+
             # # Adjust Y values using grouped parameters
             if all(prev_values.values()):
                 for param, prev_value in prev_values.items():
@@ -133,6 +136,10 @@ class PointGenerator:
                     else:
                         factor = 1
                     Yo_adjusted *= factor
+
+                    if param not in factor_values:
+                        factor_values[param] = []
+                    factor_values[param].append(factor)
 
             # # Adjust Y values using global parameters
             if all(prev_global_values.values()):
@@ -152,6 +159,10 @@ class PointGenerator:
 
                     Yo_adjusted *= factor
 
+                    if param not in factor_values:
+                        factor_values[param] = []
+                    factor_values[param].append(factor)
+
 
             # Calculate speed and time
             speed_kmph = self.calculate_speed(Yo_adjusted)
@@ -159,13 +170,14 @@ class PointGenerator:
             segment_time = ((self.interval / 1000) / speed_kmph) * 60
             time_tracker.update_time(segment_time)
             Y_values.append(Yo_adjusted)
-            Yo = Yo_adjusted
+            # Yo = Yo_adjusted
 
             # Update previous values for grouped and global parameters
             prev_values.update(current_values)
             prev_global_values.update(current_global_values)
 
-        return [round(value) for value in Y_values], speed_values
+
+        return [round(value) for value in Y_values], speed_values, factor_values
 
     def expand_points(self, y_values, vehicle_type, angle_and_radius_limit):
         """

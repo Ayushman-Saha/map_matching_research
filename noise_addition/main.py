@@ -79,14 +79,14 @@ class Simulation:
             'global': [
                 {
                     "name": 'betweenness_centrality',
-                    "constant": (0.5, 0.7),
+                    "constant": (0.05, 0.07),
                     "variant": None,
                     "average_effect": False,
                     "proportionality": "direct"
                 },
                 {
                     "name": 'traffic',
-                    "constant": (0.5, 0.7),
+                    "constant": (0.05, 0.07),
                     "variant": self.chosen_time,
                     "average_effect": False,
                     "proportionality": "direct"
@@ -102,6 +102,8 @@ class Simulation:
         }
 
         all_points = []
+        all_speed_values = []
+        all_factor_values = {}
 
         for index, edge in self.edges.iterrows():
             # Generate intermediate points
@@ -109,13 +111,20 @@ class Simulation:
             gdf_4326_gen = generator.generate_intermediate_points()
 
             gdf_4326_gen = generator.assign_characteristics(gdf_4326_gen, self.nodes, edge, params)
-            Y_values, speed_values = generator.generate_Y_values(gdf_4326_gen, params, time_tracker)
+            Y_values, speed_values, factor_values = generator.generate_Y_values(gdf_4326_gen, params, time_tracker)
             expanded_points = generator.expand_points(Y_values, self.vehicle_type, ANGLE_AND_RADIUS_LIMIT)
+
+            all_speed_values.extend(speed_values)
+            for key, value in factor_values.items():
+                if key in all_factor_values:
+                    all_factor_values[key].extend(value)
+                else:
+                    all_factor_values[key] = value[:]
 
             for point in expanded_points['geometry']:
                 all_points.append(point)
 
-        return all_points, time_tracker.current_hour, speed_values
+        return all_points, time_tracker.current_hour, all_speed_values, all_factor_values
 
 
 # MongoDB connection
@@ -146,7 +155,7 @@ for index, doc in enumerate(collection.find()):
 
         # Run the simulation
         simulation = Simulation(nodes, edges, chosen_vehicle_type, chosen_season, chosen_time)
-        points, end_time, speed_values = simulation.simulate()
+        points, end_time, speed_values, factor_values = simulation.simulate()
 
         # Prepare trajectory data
         trajectory = {
@@ -170,6 +179,35 @@ for index, doc in enumerate(collection.find()):
         # edges.plot(ax=ax, color='blue')
         # final_gdf.plot(ax=ax, color='red', marker='x', label='Expanded Points')
         # plt.legend()
+        # plt.show()
+        #
+        # truncated_data = speed_values
+        #
+        # # Plot the data
+        # plt.figure(figsize=(10, 6))
+        #
+        # for key, values in factor_values.items():
+        #     plt.plot(values, label=key, marker='o')  # Adding markers for clarity
+        #
+        #
+        # # plt.plot(truncated_data, marker='o', linestyle='-', color='b', label='Truncated Data')
+        # plt.title('Truncated Data Plot')
+        # plt.xlabel('Index')
+        # plt.ylabel('Truncated Values')
+        # plt.grid(True, linestyle='--', alpha=0.6)
+        # plt.legend()
+        # plt.tight_layout()
+        #
+        # # Show the plot
+        # plt.show()
+        #
+        # plt.figure(figsize=(10, 6))
+        # plt.plot(speed_values, label='Speed Values', marker='o')
+        # plt.title('Sample Data Visualization')
+        # plt.xlabel('Index')
+        # plt.ylabel('Values')
+        # plt.legend()
+        # plt.grid(True)
         # plt.show()
     except Exception as exception:
         print(f"Failed to process document {index} : {exception}")
