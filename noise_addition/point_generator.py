@@ -95,15 +95,12 @@ class PointGenerator:
         # Initialize previous values for grouped and global parameters
         prev_values = {param['name']: 0.5 for param in params['grouped']}
         prev_global_values = {param['name']: 0.5 for param in params['global']}
-        prev_traffic_factor = 0.5
         Yo = self.initial_sampling_rate[self.vehicle_type]
         Y_values = []
         speed_values = []
 
         for idx, point in gdf_4326_gen.iterrows():
 
-            current_hour = time_tracker.current_hour
-            traffic_factor = params['global'][0]['constant'][current_hour]
             Yo_adjusted = Yo
 
             # Retrieve grouped parameter values
@@ -112,15 +109,13 @@ class PointGenerator:
                 for param in params['grouped']
             }
 
-            # Retrieve global parameter values (handle both time-dependent and static values)
-            current_global_values = {}
+            # Retrieve global parameter values
+            current_global_values  = {}
             for param in params['global']:
-                if isinstance(param['constant'], dict):  # Time-dependent global parameter
-                    current_global_values[param['name']] = param['constant'].get(current_hour, 0.5)
-                elif isinstance(param['constant'], tuple):  # Static value range
-                    current_global_values[param['name']] = np.random.uniform(*param['constant'])
-                else:  # Static single value
-                    current_global_values[param['name']] = param['constant']
+                if param['variant'] is not None:
+                    current_global_values[param['name']] = self.edge.get(f"normalized_{param['name']}_{param['variant']}")
+                else:
+                    current_global_values[param['name']] =  self.edge.get(f"normalized_{param['name']}")
 
             # # Adjust Y values using grouped parameters
             if all(prev_values.values()):
@@ -135,19 +130,11 @@ class PointGenerator:
             if all(prev_global_values.values()):
                 for param, prev_global_value in prev_global_values.items():
                     delta = current_global_values[param] - prev_global_value
-                    if param == 'traffic':  # traffic-specific logic (if needed)
-                        coef = self.edge['normalized_betweenness_centrality']
-                    else:  # General logic for other global parameters
-                        coef = np.random.uniform(0.02, 0.10)
+                    coef = np.random.uniform(
+                        *[const for const in [p['constant'] for p in params['global'] if p['name'] == param][0]])
                     factor = (1 + coef * abs(delta)) if delta >= 0 else (1 - coef * abs(delta))
                     Yo_adjusted *= factor
 
-            # # Traffic adjustments (specific adjustment logic remains)
-            delta_T = traffic_factor - prev_traffic_factor
-            traffic_coef = self.edge['normalized_betweenness_centrality']
-            traffic_factor_adjustment = (1 + traffic_coef * abs(delta_T)) if delta_T >= 0 else (
-                        1 - traffic_coef * abs(delta_T))
-            Yo_adjusted *= traffic_factor_adjustment
 
             # Calculate speed and time
             speed_kmph = self.calculate_speed(Yo_adjusted)
@@ -160,7 +147,6 @@ class PointGenerator:
             # Update previous values for grouped and global parameters
             prev_values.update(current_values)
             prev_global_values.update(current_global_values)
-            prev_traffic_factor = traffic_factor
 
         return [round(value) for value in Y_values], speed_values
 

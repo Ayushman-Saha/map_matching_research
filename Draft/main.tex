@@ -317,7 +317,70 @@ where:
 \end{itemize}
 
 \subsection{Data Preprocessing}
-For accurate simulation, all necessary parameter details must be added beforehand to the nodes or edges, depending on their intended usage. For instance, fields like \texttt{avg\_rainfall\_\{month\}} should already exist in the data to enable grouped parameter processing. These parameters provide the foundational data for further normalization and simulation processes.
+
+In this study, the preprocessing pipeline integrates weather station metrics with the nodes of a road network graph. This ensures the assignment of weather data (e.g., rainfall, visibility, cloud cover) to graph nodes based on spatial proximity. Below, we outline the mathematical formulation of the data preprocessing steps:
+
+\subsubsection{Input Data and Graph Construction}
+The road network is represented as a directed graph \( G = (V, E) \), where \( V \) represents the set of nodes (vertices), and \( E \) represents the set of edges. Weather station data is provided in tabular format, containing geospatial coordinates (\(\text{latitude}, \text{longitude}\)) and monthly weather metrics, denoted as:
+\[
+W = \{w_1, w_2, \dots, w_n\}, \quad w_i = \{(lat, lon), m_1, m_2, \dots, m_k\},
+\]
+where \(m_k\) represents weather metrics such as rainfall, visibility, and cloud cover for a specific month.
+
+\subsubsection{Spatial Query Optimization}
+To efficiently assign weather metrics to graph nodes, we transform the spatial coordinates of the nodes and stations from degrees to radians. The transformed coordinates are denoted as:
+\[
+\text{Node coordinates: } C_V = \{(y_i, x_i) \,|\, i \in V\},
+\]
+\[
+\text{Station coordinates: } C_W = \{(lat_i, lon_i) \,|\, i \in W\}.
+\]
+Using these, we construct a BallTree for fast spatial querying. For a given station coordinate \( (lat_i, lon_i) \), the BallTree identifies all nodes within a radius \( r \), computed using the haversine formula:
+\[
+d = 2 R \arcsin \left( \sqrt{\sin^2\left(\frac{\Delta \phi}{2}\right) + \cos(\phi_1)\cos(\phi_2)\sin^2\left(\frac{\Delta \lambda}{2}\right)} \right),
+\]
+where:
+\begin{align*}
+\Delta \phi &= \phi_2 - \phi_1, \\
+\Delta \lambda &= \lambda_2 - \lambda_1, \\
+R &= 6371 \, \text{km (Earth's radius)}.
+\end{align*}
+
+\subsubsection{Node Attribute Initialization}
+For each node \( v \in V \), weather data attributes are initialized for all metrics \( m_k \) and all months \( t \in T \), where \( T \) represents the set of months:
+\[
+\text{Node attributes: } \{M_{k,t}^\text{sum}, N_t^\text{station}\},
+\]
+where \(M_{k,t}^\text{sum}\) accumulates the metric \(m_k\) for month \(t\), and \(N_t^\text{station}\) represents the number of stations contributing data for that month.
+
+\subsubsection{Weather Data Assignment}
+For each station \( w \in W \) with coordinate \((lat, lon)\), we assign weather data to all nodes \( v \in V \) within a radius \( r \). Let \( \mathcal{N}(lat, lon, r) \) denote the set of nodes within this radius. For each node \( v \in \mathcal{N}(lat, lon, r) \), and for each metric \( m_k \) and month \( t \), the following aggregation is performed:
+\[
+M_{k,t}^\text{sum}(v) \leftarrow M_{k,t}^\text{sum}(v) + m_k(w),
+\]
+\[
+N_t^\text{station}(v) \leftarrow N_t^\text{station}(v) + 1.
+\]
+This ensures that the weather data is spatially distributed among all nearby nodes.
+
+\subsubsection{Phased Data Assignment}
+To ensure full coverage of all graph nodes, the weather assignment is performed in three phases:
+\begin{enumerate}
+    \item \textbf{Coarse Search:} Radii are incremented from 100 to 200 km in steps of 10 km. Nodes within each radius are updated.
+    \item \textbf{Refinement:} A finer search is conducted with radii from \((r-10)\) to \((r+10)\) km in steps of 5 km, focusing on unassigned nodes.
+    \item \textbf{Final Refinement:} For the most precise assignment, radii from \((r-5)\) to \((r+5)\) km are tested in 1 km steps.
+\end{enumerate}
+
+\subsubsection{Averaging and Cleanup}
+After weather data aggregation, monthly averages are computed for each node \( v \in V \) as:
+\[
+\overline{M}_{k,t}(v) = \frac{M_{k,t}^\text{sum}(v)}{N_t^\text{station}(v)}, \quad \text{if } N_t^\text{station}(v) > 0.
+\]
+Intermediate fields such as \( M_{k,t}^\text{sum} \) and \( N_t^\text{station} \) are then removed to optimize memory usage.
+
+\subsubsection{Final Output}
+The processed graph, now enriched with average weather metrics \(\overline{M}_{k,t}(v)\) for all \(v \in V\), is stored as a \texttt{GraphML} file for subsequent analyses.
+
 
 \subsection{Path Generation}
 Paths in the graph are generated using a three-step process: BFS-based layering, random walk algorithms, and categorization.
