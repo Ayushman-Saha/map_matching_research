@@ -55,19 +55,24 @@ class Simulation:
         traffic_processor = ParameterProcessor(self.edges, "traffic", type="ungrouped", variants=[a for a in range(0, 24)])
         traffic_processor.process()
 
+        turning_index_processor = ParameterProcessor(self.edges, "turn_severity_index", type="ungrouped")
+        turning_index_processor.process()
+
         params = {
             'grouped': [
                 {
                     "name": 'rainfall',
                     "grouping_key": self.season,
                     "constant": (0.02, 0.10),
-                    "average_effect": True
+                    "average_effect": True,
+                    "proportionality" : "direct" #Proportionality with Y values
                 },
                 {
                     "name": 'visibility',
                     "grouping_key": self.season,
                     "constant": (0.04, 0.09),
-                    "average_effect": True
+                    "average_effect": True,
+                    "proportionality" : "inverse"
                 },
 
             ],
@@ -76,14 +81,23 @@ class Simulation:
                     "name": 'betweenness_centrality',
                     "constant": (0.5, 0.7),
                     "variant": None,
-                    "average_effect": False
+                    "average_effect": False,
+                    "proportionality": "direct"
                 },
                 {
                     "name": 'traffic',
                     "constant": (0.5, 0.7),
                     "variant": self.chosen_time,
-                    "average_effect": False
+                    "average_effect": False,
+                    "proportionality": "direct"
                 },
+                {
+                    "name": 'turn_severity_index',
+                    "constant": (0.5, 0.9),
+                    "average_effect": False,
+                    "variant": None,
+                    "proportionality": "direct"
+                }
             ],
         }
 

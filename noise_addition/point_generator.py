@@ -123,7 +123,15 @@ class PointGenerator:
                     delta = current_values[param] - prev_value
                     coef = np.random.uniform(
                         *[const for const in [p['constant'] for p in params['grouped'] if p['name'] == param][0]])
-                    factor = (1 + coef * abs(delta)) if delta >= 0 else (1 - coef * abs(delta))
+
+                    #Varying the factor based on the proportionality of parameter with Y values
+                    proportionality = next(item['proportionality'] for item in params['grouped'] if item['name'] == param)
+                    if proportionality == "direct":
+                        factor = (1 + coef * abs(delta)) if delta >= 0 else (1 - coef * abs(delta))
+                    elif proportionality == "inverse":
+                        factor = (1 - coef * abs(delta)) if delta >= 0 else (1 + coef * abs(delta))
+                    else:
+                        factor = 1
                     Yo_adjusted *= factor
 
             # # Adjust Y values using global parameters
@@ -132,7 +140,16 @@ class PointGenerator:
                     delta = current_global_values[param] - prev_global_value
                     coef = np.random.uniform(
                         *[const for const in [p['constant'] for p in params['global'] if p['name'] == param][0]])
-                    factor = (1 + coef * abs(delta)) if delta >= 0 else (1 - coef * abs(delta))
+
+                    # Varying the factor based on the proportionality of parameter with Y values
+                    proportionality = next(item['proportionality'] for item in params['global'] if item['name'] == param)
+                    if proportionality == "direct":
+                        factor = (1 + coef * abs(delta)) if delta >= 0 else (1 - coef * abs(delta))
+                    elif proportionality == "inverse":
+                        factor = (1 - coef * abs(delta)) if delta >= 0 else (1 + coef * abs(delta))
+                    else:
+                        factor = 1
+
                     Yo_adjusted *= factor
 
 
@@ -184,7 +201,9 @@ class PointGenerator:
                     new_point = new_point_gdf.geometry.iloc[0]
 
                     #Displace the point
-                    new_location = distance(meters=np.random.uniform(30, angle_and_radius_limit[vehicle_type][1])).destination((new_point.y, new_point.x), random_bearing)
+                    turning_index = self.edge.get("normalized_turn_severity_index")
+                    error_distance = np.random.uniform(30, angle_and_radius_limit[vehicle_type][1])
+                    new_location = distance(meters= turning_index * error_distance).destination((new_point.y, new_point.x), random_bearing)
                     displaced_point = Point(new_location[1], new_location[0])
                     expanded_points.append(displaced_point)
 
