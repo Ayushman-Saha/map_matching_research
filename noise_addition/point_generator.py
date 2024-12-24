@@ -193,6 +193,8 @@ class PointGenerator:
         delta_limit = 0.1 * base_distance
         point_distance = -base_distance
 
+        all_distance = []
+
         for idx in range(len(y_values) - 1):
             # start_point = self.edge.geometry.iloc[idx]
             num_points = y_values[idx] if idx < len(y_values) else 0
@@ -215,8 +217,11 @@ class PointGenerator:
                     #Displace the point
                     turning_index = self.edge.get("normalized_turn_severity_index")
                     error_distance = np.random.uniform(30, angle_and_radius_limit[vehicle_type][1])
+
+                    all_distance.append(error_distance)
+
                     new_location = distance(meters= turning_index * error_distance).destination((new_point.y, new_point.x), random_bearing)
                     displaced_point = Point(new_location[1], new_location[0])
                     expanded_points.append(displaced_point)
 
-        return gpd.GeoDataFrame(geometry=expanded_points, crs="EPSG:4326")
+        return gpd.GeoDataFrame(geometry=expanded_points, crs="EPSG:4326"), all_distance

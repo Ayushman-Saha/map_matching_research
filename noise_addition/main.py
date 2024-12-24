@@ -1,3 +1,4 @@
+import numpy as np
 import osmnx as ox
 from pymongo import MongoClient
 import random
@@ -104,6 +105,7 @@ class Simulation:
         all_points = []
         all_speed_values = []
         all_factor_values = {}
+        error_distances = []
 
         for index, edge in self.edges.iterrows():
             # Generate intermediate points
@@ -112,7 +114,7 @@ class Simulation:
 
             gdf_4326_gen = generator.assign_characteristics(gdf_4326_gen, self.nodes, edge, params)
             Y_values, speed_values, factor_values = generator.generate_Y_values(gdf_4326_gen, params, time_tracker)
-            expanded_points = generator.expand_points(Y_values, self.vehicle_type, ANGLE_AND_RADIUS_LIMIT)
+            expanded_points, error_distance = generator.expand_points(Y_values, self.vehicle_type, ANGLE_AND_RADIUS_LIMIT)
 
             all_speed_values.extend(speed_values)
             for key, value in factor_values.items():
@@ -124,7 +126,9 @@ class Simulation:
             for point in expanded_points['geometry']:
                 all_points.append(point)
 
-        return all_points, time_tracker.current_hour, all_speed_values, all_factor_values
+            error_distances.extend(error_distance)
+
+        return all_points, time_tracker.current_hour, all_speed_values, all_factor_values, error_distances
 
 
 # MongoDB connection
@@ -155,7 +159,7 @@ for index, doc in enumerate(collection.find()):
 
         # Run the simulation
         simulation = Simulation(nodes, edges, chosen_vehicle_type, chosen_season, chosen_time)
-        points, end_time, speed_values, factor_values = simulation.simulate()
+        points, end_time, speed_values, factor_values, error_distances = simulation.simulate()
 
         # Prepare trajectory data
         trajectory = {
@@ -164,7 +168,8 @@ for index, doc in enumerate(collection.find()):
             "chosen_time": chosen_time,
             "end_time": end_time,
             "coordinates": [point.coords[0] for point in points],
-            "speed": speed_values
+            "speed": speed_values,
+            "avg_error_distance": np.average(error_distances),
         }
 
         # Update the document with the new trajectory field
