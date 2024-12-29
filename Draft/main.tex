@@ -536,6 +536,119 @@ The framework also includes a \textbf{TimeTracker} class to manage time dynamica
     \item Generated points are visualized alongside edges for validation.
 \end{itemize}
 
+
+\section{Dataset Analysis}
+
+\subsection{Journey Length}
+\subsubsection{Path Variations and Categorization}
+The journey lengths were categorized into four distinct variations based on the total distance covered:
+\begin{itemize}
+    \item \textbf{Small}: Paths with a total length between 10,000 and 20,000 meters.
+    \item \textbf{Medium}: Paths ranging between 20,000 and 80,000 meters.
+    \item \textbf{Large}: Paths ranging between 80,000 and 250,000 meters.
+    \item \textbf{XL}: Paths ranging between 250,000 and 750,000 meters.
+\end{itemize}
+These paths were imported from a MongoDB database, which stored detailed route information.
+
+\subsubsection{Statistical Analysis of Path Variations}
+For each category, the following statistical measures were calculated:
+\begin{itemize}
+    \item \textbf{Mean}: Average length of paths within the category.
+    \item \textbf{Standard Deviation}: Measure of variability in journey lengths.
+    \item \textbf{Median}: The midpoint length value in each category.
+\end{itemize}
+The analysis revealed significant variability between the path types, particularly in the Large and XL categories, where higher standard deviations were observed.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Category} & \textbf{Mean (m)} & \textbf{Median (m)} & \textbf{Std Dev (m)} \\
+\hline
+Small & 30,9356.188 & 28,9982.000 & 61787.235 \\
+Medium & 47,369.886 & 46,350.803 & 18500.053 \\
+Large & 141,521.824 & 130,828.775 & 46679.794 \\
+XL & 30,9356.188 & 28,9982.000 & 61787.235 \\
+\hline
+\end{tabular}
+\caption{Statistical Measures of Path Variations}
+\end{table}
+
+\subsubsection{Distribution of Path Variations}
+To visualize the distribution of paths across the categories, a pie chart was created. The chart demonstrated the percentage of paths belonging to each category:
+\begin{itemize}
+    \item \textbf{Small paths}: 24.5\% of the total routes.
+    \item \textbf{Medium paths}: 31.7\%.
+    \item \textbf{Large paths}: 27.7\%.
+    \item \textbf{XL paths}: 16.1\%.
+\end{itemize}
+This distribution provides insights into the predominant path lengths in the dataset, helping to identify trends in route selection.
+
+\subsection{Turn Index}
+\subsubsection{Significant Turns Analysis}
+A turn index was created to quantify the number and severity of turns along road segments. Significant turns were identified based on a threshold angle (15 degrees), indicating notable deviations in the road trajectory. Each turn was assigned a weight as follows:
+\begin{itemize}
+    \item 15\degree: Weight = 1
+    \item 30\degree: Weight = 1.5
+    \item 60\degree: Weight = 2
+    \item 180\degree: Weight = 3
+\end{itemize}
+These weights were used to calculate the Turn Severity Index.
+
+\subsubsection{Heatmap Visualization}
+A heatmap was generated to visualize the spatial distribution of significant turns, using color gradients to represent Turn Density. Observations included:
+\begin{itemize}
+    \item Urban areas with dense road networks had higher turn densities.
+    \item Highways and arterial roads exhibited lower turn densities due to relatively straight trajectories.
+\end{itemize}
+
+\subsubsection{Implications for Navigation}
+\begin{itemize}
+    \item \textbf{Route Optimization}: Identifying roads with fewer turns for smoother navigation.
+    \item \textbf{Safety Measures}: Highlighting areas with high turn density that may require better signage or reduced speed limits.
+\end{itemize}
+
+\subsection{Visibility}
+\subsubsection{Data Overview}
+Visibility data was analyzed to understand its variation across road segments, providing insights into atmospheric conditions and potential visibility-related risks during travel.
+
+\subsubsection{Heatmap Visualization}
+A heatmap was generated for every node present in the Indian road network. Each node stored information about visibility, with:
+\begin{itemize}
+    \item \textbf{Low visibility values}: Depicted in red, indicating higher risk areas.
+    \item \textbf{High visibility values}: Depicted in yellow, suggesting safer conditions.
+\end{itemize}
+This heatmap allowed for a spatial understanding of visibility conditions across different regions.
+
+\subsubsection{Observations}
+\begin{itemize}
+    \item Areas with low visibility were concentrated in regions with known foggy or rainy weather patterns.
+    \item High visibility values were generally aligned with flat terrain and open roads, such as highways and rural areas.
+\end{itemize}
+
+\subsubsection{Applications}
+\begin{itemize}
+    \item \textbf{Road Safety Improvements}: Identifying segments prone to weather-related accidents.
+    \item \textbf{Route Planning}: Suggesting alternative paths during low-visibility conditions.
+\end{itemize}
+
+\subsection{Rainfall}
+\subsubsection{Analysis of Rainfall Data}
+Rainfall intensity and distribution were mapped across the dataset. Segments with heavy rainfall were identified, providing insights into potential flooding risks and surface conditions.
+
+\subsubsection{Key Findings}
+\begin{itemize}
+    \item High rainfall zones were observed near water bodies and regions prone to monsoon activity.
+    \item Road segments with frequent and intense rainfall were more likely to experience reduced traction and visibility, increasing accident risk.
+\end{itemize}
+
+\subsubsection{Implications}
+\begin{itemize}
+    \item \textbf{Infrastructure Planning}: Identifying segments requiring improved drainage systems to mitigate flooding.
+    \item \textbf{Driver Guidance}: Highlighting areas with high rainfall risks in navigation systems to improve route safety.
+\end{itemize}
+
+
 \section{Conclusion}
 This framework provides a modular approach to geospatial data enrichment. By integrating traffic, environmental, and structural parameters, it enables realistic simulations for vehicle dynamics. Future work may include extending parameter types and optimizing computational efficiency.
 
