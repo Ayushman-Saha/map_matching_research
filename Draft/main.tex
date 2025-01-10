@@ -281,6 +281,91 @@ attributes.
 \maketitle
 
 \section{Introduction}
+In recent years, GPS trajectory data has emerged as a valuable 
+resource for various applications, 
+including transportation optimization, 
+urban planning, and mobility pattern analysis. 
+The availability of large-scale, real-world GPS trajectory datasets enables 
+researchers to develop and validate models for route prediction, 
+traffic forecasting, and user behavior analysis.
+However, such datasets are often sparse or difficult 
+to obtain due to privacy concerns, data collection challenges, and/or regional limitations. 
+Because of these limitations, there are only a handful of entities
+that can collect such data.
+While various organizations can theoretically collect GPS data, 
+we believe only the ride-sharing services (like Grab, Uber)
+and the digital map service providers (like Google Maps or Apple Maps) 
+are uniquely positioned to gather such data
+for the following reasons:
+
+(1) \emph{Extensive and Diverse User Base:}
+These companies operate on a massive scale, serving millions of active users across different regions. 
+Unlike public transportation services or static maps, 
+these platforms can collect data from a broad and diverse user base
+spanning people from various backgrounds.
+This diversity ensures that the data captured represents a wide spectrum of 
+travel behaviors and preferences, making it more comprehensive. 
+This would also avoid biases ensuring that the data is widely relevant and representative of real-world mobility patterns.
+
+(2) \emph{Comprehensive Geographic Coverage:}
+These platforms operate in multiple cities across various countries and 
+can capture GPS data from users traveling along a wide range of routes.
+This geographic breadth is especially valuable for understanding 
+mobility.
+
+(3) \emph{Time-Stamped Data Collection:}
+As these platform can collect time-stamped GPS data,
+they offers a dynamic picture of travel patterns.
+For example, the time taken to cover the same route
+can widly very depending whether the commute is during
+the peak hours or wee hours.
+Similarly, a route might take much longer to complete
+in the likely presense of rain or fog.
+
+(4) \emph{Detailed Movement Tracking:}
+These platforms can capture fine-grained GPS data that tracks not just the start and end points of trips, but also intermediate stops, travel routes, and patterns of movement. 
+For instance, ride-sharing companies can track how drivers navigate traffic, avoid congestion, and make route adjustments based on real-time conditions. %This detailed data is valuable for understanding more complex travel patterns, such as deviations from typical routes, detours, and adaptive driving strategies.
+
+(5) \emph{Incentivized Data Collection:}
+ Grab, Uber, and similar companies have built-in incentive structures that encourage users to contribute to data collection. 
+For example, drivers and passengers benefit from improved service quality, optimized routes, and monetary rewards in exchange for sharing their location and journey data. 
+A typical mobile user always keep sharing his/her location
+as the functionality of most of the other necessary applications
+replies on it.
+This incentivization leads to a continuous flow of accurate and reliable data, helping these companies build large and diverse datasets. 
+
+It is hard to imagine any other entity apart from 
+ride-hailing services and digital map service providers
+that are able to collect search real-life data.
+However, we could not find any data made available by these companies
+(or any other entity) with a notable exception 
+of the \textbf{Grab-Posisi} dataset, introduced by the group of researcher
+at Grab~\cite{DBLP:conf/gis/XuYDHKFWZ20} in 2020.
+The authors presented an comprehensive overview of the 
+existing open source dataset and highlihgted  their
+drawbacks.
+The paper also contains an excellent summary of 
+the related work which to the best of our knowledge,
+remains latest such.
+The dataset includes trajectories from millions of users, covering a broad range of transportation modes, from private vehicles to shared rides and public transport.
+
+Needless to say, very few scientiest have access to the resources
+that researcher at Grab have.
+Considering their paper as a foundation, our work focuses on the generation of synthetic GPS trajectory data. 
+While the real-world data \textbf{Grab-Posisi} offer rich insights, it is
+constrained limited geographical coverage, and scalability. 
+Synthetic data, which is artificially generated using statistical models, algorithms, or machine learning approaches, offers several key advantages. These include the ability to create large volumes of data without privacy concerns, simulate diverse and rare scenarios, and augment real-world data to improve the robustness of models trained on them.
+
+Our primary contribution in this paper is the development of a novel methodology for generating synthetic GPS trajectories that resemble the movement patterns observed in India. 
+We utilize a combination of tools from graph theory to 
+simulate realistic trajectories. 
+In doing so, we aim to complement real-world datasets with scalable, privacy-preserving data that can be used for a variety of applications, including transportation modeling, mobility prediction, and traffic management.
+By advancing the field of synthetic trajectory data generation, we hope to contribute to the development of more scalable, accessible, and region-specific tools for urban mobility research.
+
+
+
+
+
 \subsection{Overview}
 The simulation framework is designed to process geospatial data and generate enriched datasets by simulating vehicle trajectories on a predefined graph.
 The system leverages OpenStreetMap data and incorporates various environmental factors like rainfall, visibility, and traffic conditions. The code is modular, divided across three files:
@@ -588,10 +673,10 @@ This distribution provides insights into the predominant path lengths in the dat
 \subsubsection{Significant Turns Analysis}
 A turn index was created to quantify the number and severity of turns along road segments. Significant turns were identified based on a threshold angle (15 degrees), indicating notable deviations in the road trajectory. Each turn was assigned a weight as follows:
 \begin{itemize}
-    \item 15\degree: Weight = 1
-    \item 30\degree: Weight = 1.5
-    \item 60\degree: Weight = 2
-    \item 180\degree: Weight = 3
+    \item $15^\circ$: Weight = 1
+    \item  $30^\circ$: Weight = 1.5
+    \item  $60^\circ$: Weight = 2
+    \item  $180^\circ$: Weight = 3
 \end{itemize}
 These weights were used to calculate the Turn Severity Index.
 
@@ -673,6 +758,8 @@ to vehicular movements.
 These sequences are of varying complexities and charcters
 and together they span total of XYZ kilometers. 
 
+
+\iffalse
 
 \newpage
 
@@ -1214,12 +1301,16 @@ To Robert, for the bagels and explaining CMYK and color spaces.
 %%
 %% The next two lines define the bibliography style to be used, and
 %% the bibliography file.
+\fi
+
+
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{references}
 
 
 %%
 %% If your work has an appendix, this is the place to put it.
+\iffalse
 \appendix
 
 \section{Research Methods}
@@ -1251,6 +1342,7 @@ dui. Etiam sagittis eleifend elementum.
 Nam interdum magna at lectus dignissim, ac dignissim lorem
 rhoncus. Maecenas eu arcu ac neque placerat aliquam. Nunc pulvinar
 massa et mattis lacinia.
+\fi
 
 \end{document}
 \endinput
