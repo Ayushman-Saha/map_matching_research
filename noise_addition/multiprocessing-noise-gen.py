@@ -64,7 +64,7 @@ def main():
     try:
         # MongoDB connection
         logging.info("Connecting to MongoDB...")
-        mongo_string = "mongodb://sih24:sih24@localhost:27017/sih24?authSource=sih24"
+        mongo_string = "mongodb://sih24:sih24@localhost:27018/sih24?authSource=sih24"
         client = MongoClient(mongo_string)
         collection = client['map_matching']['paths_tree']
         logging.info("Successfully connected to MongoDB")
