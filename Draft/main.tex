@@ -320,10 +320,10 @@ mobility.
 As these platform can collect time-stamped GPS data,
 they offers a dynamic picture of travel patterns.
 For example, the time taken to cover the same route
-can widly very depending whether the commute is during
+can widely very depending whether the commute is during
 the peak hours or wee hours.
 Similarly, a route might take much longer to complete
-in the likely presense of rain or fog.
+in the likely presence of rain or fog.
 
 (4) \emph{Detailed Movement Tracking:}
 These platforms can capture fine-grained GPS data that tracks not just the start and end points of trips, but also intermediate stops, travel routes, and patterns of movement. 
@@ -335,7 +335,7 @@ For example, drivers and passengers benefit from improved service quality, optim
 A typical mobile user always keep sharing his/her location
 as the functionality of most of the other necessary applications
 replies on it.
-This incentivization leads to a continuous flow of accurate and reliable data, helping these companies build large and diverse datasets. 
+This incentivize leads to a continuous flow of accurate and reliable data, helping these companies build large and diverse datasets.
 
 It is hard to imagine any other entity apart from 
 ride-hailing services and digital map service providers
@@ -345,14 +345,14 @@ However, we could not find any data made available by these companies
 of the \textbf{Grab-Posisi} dataset, introduced by the group of researcher
 at Grab~\cite{DBLP:conf/gis/XuYDHKFWZ20} in 2020.
 The authors presented an comprehensive overview of the 
-existing open source dataset and highlihgted  their
+existing open source dataset and highlighted  their
 drawbacks.
 The paper also contains an excellent summary of 
 the related work which to the best of our knowledge,
 remains latest such.
 The dataset includes trajectories from millions of users, covering a broad range of transportation modes, from private vehicles to shared rides and public transport.
 
-Needless to say, very few scientiest have access to the resources
+Needless to say, very few scientist have access to the resources
 that researcher at Grab have.
 Considering their paper as a foundation, our work focuses on the generation of synthetic GPS trajectory data. 
 While the real-world data \textbf{Grab-Posisi} offer rich insights, it is
@@ -367,41 +367,38 @@ By advancing the field of synthetic trajectory data generation, we hope to contr
 
 \subsection{Overview}
 The simulation framework is designed to process geospatial data and generate enriched datasets by simulating vehicle trajectories on a predefined graph.
-The system leverages OpenStreetMap data and incorporates various environmental factors like rainfall, visibility, and traffic conditions. The code is modular, divided across three files:
+The system leverages OpenStreetMap data and incorporates various environmental factors like rainfall, visibility, and traffic conditions. The code is modular, divided across three files.
 
+\section{Dataset}
 
-\section{DataSet}
+The simulation utilizes a synthetic dataset comprising 1.3 million records, representing diverse transportation scenarios. Each record captures a detailed route simulation, including spatial, temporal, and vehicular attributes. The dataset was generated to model real-world traffic patterns and route dynamics.
 
-In the synthetic dataset utilized for this study, each trajectory is characterized by a diverse set of attributes that encapsulate various aspects of its features. These attributes include osmid, X, Y, maxspeed, turn\_severity\_index, turn\_density, significant\_turns, traffic, geometry, betweenness\_centrality, length, reversed, avg\_cloud\_cover, avg\_rainfall, and avg\_visibility. Collectively, these attributes provide a comprehensive representation of the trajectories, integrating spatial, geometric, and environmental factors to facilitate detailed analysis and insights.
+\subsection{Structure of the Dataset}
 
+The dataset structure is summarized in Table~\ref{tab:dataset-structure}.
 
-\begin{table}[H]
+\begin{table*}[h!]
 \centering
-\caption{Attributes and Their Data Types in the Dataset}
-  \begin{tabular}{|c|c|}
-    \hline
-    \textbf{Attribute} & \textbf{Data Type} \\ \hline
-    osmid & string \\ \hline
-    X & string \\ \hline
-    Y & string \\ \hline
-    maxspeed & string \\ \hline
-    turn\_severity\_index & string \\ \hline
-    turn\_density & string \\ \hline
-    significant\_turns & string \\ \hline
-    traffic & string \\ \hline
-    geometry & string \\ \hline
-    betweenness\_centrality & string \\ \hline
-    length & string \\ \hline
-    reversed & string \\ \hline
-    avg\_cloud\_cover & string \\ \hline
-    avg\_rainfall & string \\ \hline
-    avg\_visibility & string \\ \hline
-  \end{tabular}
-  \end{table}
-  
-  
-  
-
+\caption{Structure of the Dataset}
+\label{tab:dataset-structure}
+\begin{tabular}{|c|c|l|}
+\hline
+\textbf{Field} & \textbf{Data Type} & \textbf{Description} \\ \hline
+\texttt{\_id} & String & Unique identifier for the route record \\ \hline
+\texttt{category} & String & Classification of the route by size (e.g., \textit{large} or \textit{small}) \\ \hline
+\texttt{start\_node} & Integer & Identifier of the starting node in the route \\ \hline
+\texttt{route\_length} & Float & Total length of the route (in meters) \\ \hline
+\texttt{route} & Array & Sequence of nodes defining the route (e.g., junctions or intersections) \\ \hline
+\texttt{trajectory} & Object & Metadata about the vehicle's journey, including: \\
+& & \hspace{1em} \texttt{vehicle\_type}: Type of vehicle (e.g., \textit{car}) \\
+& & \hspace{1em} \texttt{season}: Simulated season (e.g., \textit{autumn}) \\
+& & \hspace{1em} \texttt{chosen\_time}: Starting hour of the journey (24-hour clock) \\
+& & \hspace{1em} \texttt{end\_time}: Hour when the journey ends \\ \hline
+\texttt{coordinates} & Array & Geospatial coordinates representing the route's path \\ \hline
+\texttt{speed} & Array & Speed values recorded during the journey \\ \hline
+\texttt{avg\_error\_distance} & Float & Average deviation between synthetic and actual route data (in meters) \\ \hline
+\end{tabular}
+\end{table*}
 
 \section{Methodology}
 
@@ -421,12 +418,50 @@ where:
 \begin{itemize}
     \item $V = \{v_1, v_2, ..., v_n\}$ is the set of vertices (nodes) representing road intersections, with each $v_i$ defined as:
     \[v_i = (lat_i, lon_i, A_i)\]
-    where $lat_i, lon_i$ are geographical coordinates and $A_i$ is the set of attributes for node $i$
-    
+    where $lat_i, lon_i$ are geographical coordinates and $A_i$ is the set of attributes for node $i$.
+
     \item $E = \{e_1, e_2, ..., e_m\}$ is the set of edges representing road segments, with each $e_k$ defined as:
     \[e_k = (v_i, v_j, G_k, P_k)\]
-    where $v_i, v_j \in V$ are connected nodes, $G_k$ is the geometry of the edge, and $P_k$ is the set of parameters associated with the edge
+    where $v_i, v_j \in V$ are connected nodes, $G_k$ is the geometry of the edge, and $P_k$ is the set of parameters associated with the edge.
 \end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Attributes, Data Types, and Descriptions for Edges}
+\label{tab:edges-attributes}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{|c|c|l|}
+\hline
+\textbf{Attribute} & \textbf{Data Type} & \textbf{Description} \\ \hline
+osmid & int & Unique identifier for the edge from OpenStreetMap \\ \hline
+maxspeed & int & Maximum speed limit of the road segment (km/h) \\ \hline
+turn\_severity\_index & float & Numerical index representing the severity of turns \\ \hline
+turn\_density & float & Number of significant turns per km road segment \\ \hline
+significant\_turns & float & Number of turns > 15° in the road segment \\ \hline
+traffic & int & Traffic volume or level on the road segment at a particular hour \\ \hline
+geometry & Shapely.LineString & Geometrical representation of the road segment \\ \hline
+betweenness\_centrality & float & Measure of the edge's importance in the network \\ \hline
+length & float & Length of the road segment (meters) \\ \hline
+\end{tabular}
+}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Attributes, Data Types, and Descriptions for Nodes}
+\label{tab:nodes-attributes}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{|c|c|l|}
+\hline
+\textbf{Attribute} & \textbf{Data Type} & \textbf{Description} \\ \hline
+osmid & int & Unique identifier for the nodes from OpenStreetMap \\ \hline
+street\_count & int & Number of streets at the particular junction \\ \hline
+geometry & Shapely.Point & Geometrical representation of the road junction \\ \hline
+avg\_rainfall & float & Average rainfall value for a particular month \\ \hline
+avg\_visibility & float & Average visibility value for a particular month \\ \hline
+\end{tabular}
+}
+\end{table}
 
 
 \subsection{Path Generation}
@@ -462,9 +497,9 @@ Paths in the graph are generated using a three-step process: BFS-based layering,
 \end{enumerate}
 
 \subsection{Path Storage and Retrieval}
-\subsubsection{Storage in MongoDB}
+\subsubsection{Storage in database}
 \begin{itemize}
-    \item Paths are stored as documents in a MongoDB collection (\texttt{paths\_tree}).
+    \item Paths are stored as documents in a NoSQL Database
     \item Each document contains:
     \begin{itemize}
         \item \textbf{Route}: A list of node IDs forming the path
@@ -476,7 +511,7 @@ Paths in the graph are generated using a three-step process: BFS-based layering,
 
 \subsubsection{Reconstruction}
 \begin{itemize}
-    \item Paths are retrieved from MongoDB and applied to the graph stored in GraphML format.
+    \item Paths are retrieved from database as routes and applied to the graph stored in GraphML format.
     \item Fetched paths are converted into GeoDataFrames using the node and edge geospatial data for further processing.
 \end{itemize}
 
@@ -544,43 +579,17 @@ Where:
 \end{itemize}
 
 \subsection{Time Tracker}
-The framework also includes a \textbf{TimeTracker} class to manage time dynamically throughout the simulation. This class is responsible for:
+The framework includes a \textbf{TimeTracker} class to dynamically manage time during the simulation. Its key responsibilities are:
 
-\subsubsection{Tracking Elapsed Time}
 \begin{itemize}
-    \item The \texttt{TimeTracker} keeps track of the total elapsed time across segments of a route.
-    \item It ensures that the current hour is updated as the simulation progresses.
-\end{itemize}
-
-\subsubsection{Traffic Updates}
-\begin{itemize}
-    \item As the time progresses, the current hour affects global parameters such as traffic density, which may vary hourly.
-\end{itemize}
-
-\subsubsection{Functionality}
-\begin{itemize}
-    \item \textbf{Initialization}:
+    \item \textbf{Tracking Elapsed Time}: Maintains total elapsed time (in minutes) and updates the current hour based on simulation progress.
+    \item \textbf{Traffic Updates}: Adjusts time-dependent parameters like traffic density based on the current hour.
+    \item \textbf{Core Functions}:
     \begin{itemize}
-        \item The \texttt{TimeTracker} starts with a given initial hour.
-        \item It maintains a cumulative record of elapsed time in minutes.
+        \item \textbf{Initialization}: Starts at a given initial hour and tracks cumulative elapsed time.
+        \item \textbf{Updating Time}: Updates elapsed time and wraps the current hour to a 24-hour clock.
+        \item \textbf{Total Time}: Provides total elapsed time as a continuous value in hours.
     \end{itemize}
-
-    \item \textbf{Updating Time}:
-    \begin{itemize}
-        \item The \texttt{update\_time} method takes the time for a segment (in minutes) as input and updates both the total elapsed time and the current hour.
-        \item It ensures that the current hour wraps around (modulo 24) to reflect a 24-hour clock.
-    \end{itemize}
-
-    \item \textbf{Total Hours}:
-    \begin{itemize}
-        \item The total time traveled (in hours) can be retrieved as a float property, providing a continuous measure of time elapsed.
-    \end{itemize}
-\end{itemize}
-
-\section{Results}
-\begin{itemize}
-    \item The simulation produces high-resolution geospatial datasets in GeoJSON format.
-    \item Generated points are visualized alongside edges for validation.
 \end{itemize}
 
 
@@ -598,24 +607,18 @@ The journey lengths were categorized into four distinct variations based on the 
 These paths were imported from a MongoDB database, which stored detailed route information.
 
 \subsubsection{Statistical Analysis of Path Variations}
-For each category, the following statistical measures were calculated:
-\begin{itemize}
-    \item \textbf{Mean}: Average length of paths within the category.
-    \item \textbf{Standard Deviation}: Measure of variability in journey lengths.
-    \item \textbf{Median}: The midpoint length value in each category.
-\end{itemize}
 The analysis revealed significant variability between the path types, particularly in the Large and XL categories, where higher standard deviations were observed.
 
 \begin{table}[h!]
 \centering
 \begin{tabular}{|c|c|c|c|}
 \hline
-\textbf{Category} & \textbf{Mean (m)} & \textbf{Median (m)} & \textbf{Std Dev (m)} \\
+\textbf{Category} & \textbf{Mean (km)} & \textbf{Median (km)} & \textbf{Std Dev (km)} \\
 \hline
-Small & 30,9356.188 & 28,9982.000 & 61787.235 \\
-Medium & 47,369.886 & 46,350.803 & 18500.053 \\
-Large & 141,521.824 & 130,828.775 & 46679.794 \\
-XL & 30,9356.188 & 28,9982.000 & 61787.235 \\
+Small & 14.693 & 14.520 & 2.943 \\
+Medium & 47.369 & 46.350 & 18.500 \\
+Large & 141.521 & 130.828 & 46.679 \\
+XL & 309.356 & 289.982 & 61.787 \\
 \hline
 \end{tabular}
 \caption{Statistical Measures of Path Variations}
@@ -643,17 +646,7 @@ A turn index was created to quantify the number and severity of turns along road
 These weights were used to calculate the Turn Severity Index.
 
 \subsubsection{Heatmap Visualization}
-A heatmap was generated to visualize the spatial distribution of significant turns, using color gradients to represent Turn Density. Observations included:
-\begin{itemize}
-    \item Urban areas with dense road networks had higher turn densities.
-    \item Highways and arterial roads exhibited lower turn densities due to relatively straight trajectories.
-\end{itemize}
-
-\subsubsection{Implications for Navigation}
-\begin{itemize}
-    \item \textbf{Route Optimization}: Identifying roads with fewer turns for smoother navigation.
-    \item \textbf{Safety Measures}: Highlighting areas with high turn density that may require better signage or reduced speed limits.
-\end{itemize}
+A heatmap was generated to visualize the spatial distribution of significant turns, using color gradients to represent Turn Density.
 
 \subsection{Visibility}
 \subsubsection{Data Overview}
@@ -666,38 +659,6 @@ A heatmap was generated for every node present in the Indian road network. Each 
     \item \textbf{High visibility values}: Depicted in yellow, suggesting safer conditions.
 \end{itemize}
 This heatmap allowed for a spatial understanding of visibility conditions across different regions.
-
-\subsubsection{Observations}
-\begin{itemize}
-    \item Areas with low visibility were concentrated in regions with known foggy or rainy weather patterns.
-    \item High visibility values were generally aligned with flat terrain and open roads, such as highways and rural areas.
-\end{itemize}
-
-\subsubsection{Applications}
-\begin{itemize}
-    \item \textbf{Road Safety Improvements}: Identifying segments prone to weather-related accidents.
-    \item \textbf{Route Planning}: Suggesting alternative paths during low-visibility conditions.
-\end{itemize}
-
-\subsection{Rainfall}
-\subsubsection{Analysis of Rainfall Data}
-Rainfall intensity and distribution were mapped across the dataset. Segments with heavy rainfall were identified, providing insights into potential flooding risks and surface conditions.
-
-\subsubsection{Key Findings}
-\begin{itemize}
-    \item High rainfall zones were observed near water bodies and regions prone to monsoon activity.
-    \item Road segments with frequent and intense rainfall were more likely to experience reduced traction and visibility, increasing accident risk.
-\end{itemize}
-
-\subsubsection{Implications}
-\begin{itemize}
-    \item \textbf{Infrastructure Planning}: Identifying segments requiring improved drainage systems to mitigate flooding.
-    \item \textbf{Driver Guidance}: Highlighting areas with high rainfall risks in navigation systems to improve route safety.
-\end{itemize}
-
-
-\section{Conclusion}
-This framework provides a modular approach to geospatial data enrichment. By integrating traffic, environmental, and structural parameters, it enables realistic simulations for vehicle dynamics. Future work may include extending parameter types and optimizing computational efficiency.
 
 
 \section{Misc}
