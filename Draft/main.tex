@@ -45,6 +45,9 @@
 %%
 %%
 \documentclass[sigplan,screen]{acmart}
+\usepackage{float}
+\usepackage{graphicx}
+
 %%
 %% \BibTeX command to typeset BibTeX logo in the docs
 \AtBeginDocument{%
@@ -362,19 +365,43 @@ simulate realistic trajectories.
 In doing so, we aim to complement real-world datasets with scalable, privacy-preserving data that can be used for a variety of applications, including transportation modeling, mobility prediction, and traffic management.
 By advancing the field of synthetic trajectory data generation, we hope to contribute to the development of more scalable, accessible, and region-specific tools for urban mobility research.
 
-
-
-
-
 \subsection{Overview}
 The simulation framework is designed to process geospatial data and generate enriched datasets by simulating vehicle trajectories on a predefined graph.
 The system leverages OpenStreetMap data and incorporates various environmental factors like rainfall, visibility, and traffic conditions. The code is modular, divided across three files:
 
-\begin{enumerate}
-    \item \textbf{main.py}: Orchestrates the simulation process.
-    \item \textbf{parameter.py}: Handles parameter preprocessing and normalization.
-    \item \textbf{point\_generator.py}: Generates intermediate and expanded points along edges.
-\end{enumerate}
+
+\section{DataSet}
+
+In the synthetic dataset utilized for this study, each trajectory is characterized by a diverse set of attributes that encapsulate various aspects of its features. These attributes include osmid, X, Y, maxspeed, turn\_severity\_index, turn\_density, significant\_turns, traffic, geometry, betweenness\_centrality, length, reversed, avg\_cloud\_cover, avg\_rainfall, and avg\_visibility. Collectively, these attributes provide a comprehensive representation of the trajectories, integrating spatial, geometric, and environmental factors to facilitate detailed analysis and insights.
+
+
+\begin{table}[H]
+\centering
+\caption{Attributes and Their Data Types in the Dataset}
+  \begin{tabular}{|c|c|}
+    \hline
+    \textbf{Attribute} & \textbf{Data Type} \\ \hline
+    osmid & string \\ \hline
+    X & string \\ \hline
+    Y & string \\ \hline
+    maxspeed & string \\ \hline
+    turn\_severity\_index & string \\ \hline
+    turn\_density & string \\ \hline
+    significant\_turns & string \\ \hline
+    traffic & string \\ \hline
+    geometry & string \\ \hline
+    betweenness\_centrality & string \\ \hline
+    length & string \\ \hline
+    reversed & string \\ \hline
+    avg\_cloud\_cover & string \\ \hline
+    avg\_rainfall & string \\ \hline
+    avg\_visibility & string \\ \hline
+  \end{tabular}
+  \end{table}
+  
+  
+  
+
 
 \section{Methodology}
 
@@ -401,71 +428,6 @@ where:
     where $v_i, v_j \in V$ are connected nodes, $G_k$ is the geometry of the edge, and $P_k$ is the set of parameters associated with the edge
 \end{itemize}
 
-\subsection{Data Preprocessing}
-
-In this study, the preprocessing pipeline integrates weather station metrics with the nodes of a road network graph. This ensures the assignment of weather data (e.g., rainfall, visibility, cloud cover) to graph nodes based on spatial proximity. Below, we outline the mathematical formulation of the data preprocessing steps:
-
-\subsubsection{Input Data and Graph Construction}
-The road network is represented as a directed graph \( G = (V, E) \), where \( V \) represents the set of nodes (vertices), and \( E \) represents the set of edges. Weather station data is provided in tabular format, containing geospatial coordinates (\(\text{latitude}, \text{longitude}\)) and monthly weather metrics, denoted as:
-\[
-W = \{w_1, w_2, \dots, w_n\}, \quad w_i = \{(lat, lon), m_1, m_2, \dots, m_k\},
-\]
-where \(m_k\) represents weather metrics such as rainfall, visibility, and cloud cover for a specific month.
-
-\subsubsection{Spatial Query Optimization}
-To efficiently assign weather metrics to graph nodes, we transform the spatial coordinates of the nodes and stations from degrees to radians. The transformed coordinates are denoted as:
-\[
-\text{Node coordinates: } C_V = \{(y_i, x_i) \,|\, i \in V\},
-\]
-\[
-\text{Station coordinates: } C_W = \{(lat_i, lon_i) \,|\, i \in W\}.
-\]
-Using these, we construct a BallTree for fast spatial querying. For a given station coordinate \( (lat_i, lon_i) \), the BallTree identifies all nodes within a radius \( r \), computed using the haversine formula:
-\[
-d = 2 R \arcsin \left( \sqrt{\sin^2\left(\frac{\Delta \phi}{2}\right) + \cos(\phi_1)\cos(\phi_2)\sin^2\left(\frac{\Delta \lambda}{2}\right)} \right),
-\]
-where:
-\begin{align*}
-\Delta \phi &= \phi_2 - \phi_1, \\
-\Delta \lambda &= \lambda_2 - \lambda_1, \\
-R &= 6371 \, \text{km (Earth's radius)}.
-\end{align*}
-
-\subsubsection{Node Attribute Initialization}
-For each node \( v \in V \), weather data attributes are initialized for all metrics \( m_k \) and all months \( t \in T \), where \( T \) represents the set of months:
-\[
-\text{Node attributes: } \{M_{k,t}^\text{sum}, N_t^\text{station}\},
-\]
-where \(M_{k,t}^\text{sum}\) accumulates the metric \(m_k\) for month \(t\), and \(N_t^\text{station}\) represents the number of stations contributing data for that month.
-
-\subsubsection{Weather Data Assignment}
-For each station \( w \in W \) with coordinate \((lat, lon)\), we assign weather data to all nodes \( v \in V \) within a radius \( r \). Let \( \mathcal{N}(lat, lon, r) \) denote the set of nodes within this radius. For each node \( v \in \mathcal{N}(lat, lon, r) \), and for each metric \( m_k \) and month \( t \), the following aggregation is performed:
-\[
-M_{k,t}^\text{sum}(v) \leftarrow M_{k,t}^\text{sum}(v) + m_k(w),
-\]
-\[
-N_t^\text{station}(v) \leftarrow N_t^\text{station}(v) + 1.
-\]
-This ensures that the weather data is spatially distributed among all nearby nodes.
-
-\subsubsection{Phased Data Assignment}
-To ensure full coverage of all graph nodes, the weather assignment is performed in three phases:
-\begin{enumerate}
-    \item \textbf{Coarse Search:} Radii are incremented from 100 to 200 km in steps of 10 km. Nodes within each radius are updated.
-    \item \textbf{Refinement:} A finer search is conducted with radii from \((r-10)\) to \((r+10)\) km in steps of 5 km, focusing on unassigned nodes.
-    \item \textbf{Final Refinement:} For the most precise assignment, radii from \((r-5)\) to \((r+5)\) km are tested in 1 km steps.
-\end{enumerate}
-
-\subsubsection{Averaging and Cleanup}
-After weather data aggregation, monthly averages are computed for each node \( v \in V \) as:
-\[
-\overline{M}_{k,t}(v) = \frac{M_{k,t}^\text{sum}(v)}{N_t^\text{station}(v)}, \quad \text{if } N_t^\text{station}(v) > 0.
-\]
-Intermediate fields such as \( M_{k,t}^\text{sum} \) and \( N_t^\text{station} \) are then removed to optimize memory usage.
-
-\subsubsection{Final Output}
-The processed graph, now enriched with average weather metrics \(\overline{M}_{k,t}(v)\) for all \(v \in V\), is stored as a \texttt{GraphML} file for subsequent analyses.
-
 
 \subsection{Path Generation}
 Paths in the graph are generated using a three-step process: BFS-based layering, random walk algorithms, and categorization.
@@ -491,10 +453,10 @@ Paths in the graph are generated using a three-step process: BFS-based layering,
     \item Compute the length of each path using the road segment lengths (edge metadata).
     \item Classify paths into categories based on predefined length ranges:
     \begin{itemize}
-        \item \textbf{Small}: 10,000 to 20,000 meters
-        \item \textbf{Medium}: 20,000 to 80,000 meters
-        \item \textbf{Large}: 80,000 to 250,000 meters
-        \item \textbf{XL}: 250,000 to 750,000 meters
+        \item \textbf{Small}: 10 to 20 kilometers
+        \item \textbf{Medium}: 20 to 80 kilometers
+        \item \textbf{Large}: 80 to 250 kilometers
+        \item \textbf{XL}: 250 to 750 kilometers
     \end{itemize}
     \item Randomly sample a fixed number of paths from each category for further analysis.
 \end{enumerate}
@@ -628,10 +590,10 @@ The framework also includes a \textbf{TimeTracker} class to manage time dynamica
 \subsubsection{Path Variations and Categorization}
 The journey lengths were categorized into four distinct variations based on the total distance covered:
 \begin{itemize}
-    \item \textbf{Small}: Paths with a total length between 10,000 and 20,000 meters.
-    \item \textbf{Medium}: Paths ranging between 20,000 and 80,000 meters.
-    \item \textbf{Large}: Paths ranging between 80,000 and 250,000 meters.
-    \item \textbf{XL}: Paths ranging between 250,000 and 750,000 meters.
+    \item \textbf{Small}: Paths with a total length between 10 and 20 kilometers.
+    \item \textbf{Medium}: Paths ranging between 20 and 80 kilometers.
+    \item \textbf{Large}: Paths ranging between 80 and 250 kilometers.
+    \item \textbf{XL}: Paths ranging between 250 and 750 kilometers.
 \end{itemize}
 These paths were imported from a MongoDB database, which stored detailed route information.
 
