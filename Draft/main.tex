@@ -578,23 +578,7 @@ Where:
     \item The product iterates over all grouped and global parameters influencing the point
 \end{itemize}
 
-\subsection{Time Tracker}
-The framework includes a \textbf{TimeTracker} class to dynamically manage time during the simulation. Its key responsibilities are:
-
-\begin{itemize}
-    \item \textbf{Tracking Elapsed Time}: Maintains total elapsed time (in minutes) and updates the current hour based on simulation progress.
-    \item \textbf{Traffic Updates}: Adjusts time-dependent parameters like traffic density based on the current hour.
-    \item \textbf{Core Functions}:
-    \begin{itemize}
-        \item \textbf{Initialization}: Starts at a given initial hour and tracks cumulative elapsed time.
-        \item \textbf{Updating Time}: Updates elapsed time and wraps the current hour to a 24-hour clock.
-        \item \textbf{Total Time}: Provides total elapsed time as a continuous value in hours.
-    \end{itemize}
-\end{itemize}
-
-
-\section{Dataset Analysis}
-
+\section{Pre-GPS Generation Path Analysis}
 
 \subsubsection{Statistical Analysis of Path Variations}
 The analysis revealed significant variability between the path types, particularly in the Large and XL categories, where higher standard deviations were observed.
@@ -612,120 +596,180 @@ XL & 309.356 & 289.982 & 61.787 \\
 \hline
 \end{tabular}
 \caption{Statistical Measures of Path Variations}
+\label{tab:path_stats}
 \end{table}
 
 \subsubsection{Distribution of Path Variations}
-To visualize the distribution of paths across the categories, a pie chart was created. The chart demonstrated the percentage of paths belonging to each category:
+The distribution analysis of paths across categories revealed distinct patterns in route selection:
 \begin{itemize}
-    \item \textbf{Small paths}: 24.5\% of the total routes.
-    \item \textbf{Medium paths}: 31.7\%.
-    \item \textbf{Large paths}: 27.7\%.
-    \item \textbf{XL paths}: 16.1\%.
+    \item Small paths: 24.5\% of total routes
+    \item Medium paths: 31.7\%
+    \item Large paths: 27.7\%
+    \item XL paths: 16.1\%
 \end{itemize}
-This distribution provides insights into the predominant path lengths in the dataset, helping to identify trends in route selection.
 
-\subsection{Turn Index}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\linewidth]{images/path_dist.png}
+    \caption{Distribution of path variations across categories}
+    \label{fig:path_dist}
+\end{figure}
+
+\subsection{Turn Index Analysis}
+
 \subsubsection{Significant Turns Analysis}
-A turn index was created to quantify the number and severity of turns along road segments. Significant turns were identified based on a threshold angle (15 degrees), indicating notable deviations in the road trajectory. Each turn was assigned a weight as follows:
+The Turn Severity Index (TSI) is defined as a weighted measure of significant turns along a road segment, normalized by the path length. For a given path $P$, the TSI is calculated as:
+
+\begin{equation}
+    \text{TSI}(P) = \frac{\sum_{i} w_i \times n_i}{L}
+\end{equation}
+
+Where:
 \begin{itemize}
-    \item $15^\circ$: Weight = 1
-    \item  $30^\circ$: Weight = 1.5
-    \item  $60^\circ$: Weight = 2
-    \item  $180^\circ$: Weight = 3
+    \item $w_i$ represents the weight assigned to turn angle $\theta_i$
+    \item $n_i$ is the number of turns with angle $\theta_i$
+    \item $L$ is the total path length in kilometers
+    \item $i \in \{15°, 30°, 60°, 180°\}$
 \end{itemize}
-These weights were used to calculate the Turn Severity Index.
+
+The weight assignments are defined as:
+\begin{equation}
+    w(\theta) = \begin{cases}
+        1.0 & \text{for } \theta = 15° \\
+        1.5 & \text{for } \theta = 30° \\
+        2.0 & \text{for } \theta = 60° \\
+        3.0 & \text{for } \theta = 180°
+    \end{cases}
+\end{equation}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\linewidth]{images/turn_index_dist.png}
+    \caption{Distribution of Turn Severity Index across road segments}
+    \label{fig:turn_index}
+\end{figure}
 
 \subsubsection{Heatmap Visualization}
-A heatmap was generated to visualize the spatial distribution of significant turns, using color gradients to represent Turn Density.
+A spatial heatmap visualization was generated to represent the Turn Density distribution across the road network, with color gradients indicating areas of high and low turn concentrations.
 
-\subsection{Visibility}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\linewidth]{images/significant_turns_heatmap.png}
+    \caption{Distribution of Significant Turns across road segments}
+    \label{fig:significant_turns}
+\end{figure}
+
+\subsection{Visibility Analysis}
+
 \subsubsection{Data Overview}
-Visibility data was analyzed to understand its variation across road segments, providing insights into atmospheric conditions and potential visibility-related risks during travel.
+The visibility analysis encompassed comprehensive atmospheric condition assessment across road segments, quantifying potential visibility-related risks during travel.
 
-\subsubsection{Heatmap Visualization}
-A heatmap was generated for every node present in the Indian road network. Each node stored information about visibility, with:
+\subsubsection{Seasonal Visibility Distribution}
+The visibility conditions were analyzed across different seasons to identify temporal patterns and regional variations.
+
+% \begin{figure}[h]
+%     \centering
+%     \begin{minipage}{0.95\columnwidth}
+%     \begin{subfigure}[b]{0.48\linewidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{images/visibility_heatmap_spring.png}
+%         \caption{}
+%         \label{fig:vis_spring}
+%     \end{subfigure}
+%     \hfill
+%     \begin{subfigure}[b]{0.48\linewidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{images/visibility_heatmap_summer.png}
+%         \caption{}
+%         \label{fig:vis_summer}
+%     \end{subfigure}
+%
+%     \vspace{0.2cm}
+%
+%     \begin{subfigure}[b]{0.48\linewidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{images/visibility_heatmap_autumn.png}
+%         \caption{}
+%         \label{fig:vis_autumn}
+%     \end{subfigure}
+%     \hfill
+%     \begin{subfigure}[b]{0.48\linewidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{images/visibility_heatmap_winter.png}
+%         \caption{}
+%         \label{fig:vis_winter}
+%     \end{subfigure}
+%     \end{minipage}
+%     \caption{Visibility heatmaps for different seasons: (a) Spring (b) Summer (c) Autumn (d) Winter}
+%     \label{fig:visibility_heatmaps}
+% \end{figure}
+
+
+\section{Post-GPS Generation Dataset Analysis}
+
+\subsection{Dataset Characteristics}
+The dataset encompasses three randomly chosen attributes:
 \begin{itemize}
-    \item \textbf{Low visibility values}: Depicted in red, indicating higher risk areas.
-    \item \textbf{High visibility values}: Depicted in yellow, suggesting safer conditions.
-\end{itemize}
-This heatmap allowed for a spatial understanding of visibility conditions across different regions.
-
-\subsection{Analysis of Synthetic Road Data}
-
-The synthetic road dataset provides insights into vehicular behavior by analyzing error distances, speed distributions, and temporal trends. This section highlights key observations derived from the dataset.
-
-\subsection{Analysis of Synthetic Road Data}
-
-The synthetic road dataset provides insights into vehicular behavior by analyzing error distances, speed distributions, and temporal trends. This section highlights key observations derived from the dataset.
-
-\subsubsection{Dataset Characteristics}
-The dataset consists of three key randomly chosen attributes:
-\begin{itemize}
-    \item \textbf{Vehicle Type Distribution:} The dataset includes cars, trucks, and motorcycles. These vehicle types are differentiated to account for variations in average speed and change in angle, as motorcycles tend to be faster and exhibit more deviations compared to cars and trucks.
-    \item \textbf{Seasonal Distribution:} The dataset incorporates seasonal variations, including summer, winter, spring, and autumn, to reflect different road and traffic conditions.
-    \item \textbf{Time Distribution:} The time of the event is uniformly selected across the 24-hour period, allowing for a comprehensive analysis of traffic trends.
+    \item \textbf{Vehicle Type Distribution:} Cars, trucks, and motorcycles
+    \item \textbf{Seasonal Distribution:} Summer, winter, spring, and autumn
+    \item \textbf{Time Distribution:} 24-hour period sampling
 \end{itemize}
 
-The error distances and speed distributions are computed based on these parameters, ensuring realistic simulation of road conditions.
-
-\subsubsection{Vehicle Type Distribution}
-Different vehicle types exhibit distinct driving behaviors, as illustrated in Figure~\ref{fig:vehicle_type}. Motorcycles tend to have higher speeds and more deviations, whereas trucks and cars follow more stable patterns.
+\subsection{Vehicle Type Distribution}
+Different vehicle types exhibit distinct driving behaviors, with motorcycles showing higher speeds and more deviations compared to trucks and cars.
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\linewidth]{images/vehicle_dist.png}
-    \caption{Distribution of vehicle types in synthetic road data.}
-    \label{fig:vehicle_type}
+    \caption{Distribution of vehicle types in synthetic road data}
+    \label{fig:vehicle_dist}
 \end{figure}
 
-\subsubsection{Seasonal Distribution}
-Seasonal variations influence road and traffic conditions significantly. Figure~\ref{fig:season_dist} illustrates how different seasons impact the dataset, affecting speed and error distributions due to weather conditions and road surface changes.
+\subsection{Seasonal Distribution}
+Seasonal variations significantly influence road and traffic conditions.
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\linewidth]{images/season_dist.png}
-    \caption{Seasonal distribution in synthetic road data.}
+    \caption{Seasonal distribution in synthetic road data}
     \label{fig:season_dist}
 \end{figure}
 
-\subsubsection{Distribution of Average Error Distance}
-The distribution of average error distance is characterized by distinct peaks, indicating the presence of multiple driving patterns or vehicle types. As shown in Figure~\ref{fig:error_dist}, the dataset exhibits a multimodal distribution, suggesting variations in tracking accuracy across different conditions.
+\subsection{Distribution of Average Error Distance}
+The distribution of average error distance shows distinct peaks, indicating multiple driving patterns.
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\linewidth]{images/avg_error.png}
-    \caption{Distribution of average error distance in synthetic road data.}
+    \caption{Distribution of average error distance in synthetic road data}
     \label{fig:error_dist}
 \end{figure}
 
-\subsubsection{Chosen Time Trends}
-The frequency of chosen time slots is uniformly distributed across the 24-hour period, as illustrated in Figure~\ref{fig:time_trend}. Since this is a synthetic dataset, the distribution does not reflect real-world rush hours but provides an unbiased representation of time selection.
+\subsection{Chosen Time Trends}
+Time slots are uniformly distributed across the 24-hour period.
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\linewidth]{images/time_dist.png}
-    \caption{Hourly distribution of chosen time slots in synthetic road data.}
+    \caption{Hourly distribution of chosen time slots in synthetic road data}
     \label{fig:time_trend}
 \end{figure}
 
-\subsubsection{Distribution of Average Speed}
-The distribution of average speed exhibits a multimodal nature, as seen in Figure~\ref{fig:speed_dist}. This suggests the existence of distinct vehicle categories or varied driving behaviors within the dataset. The peaks at specific speed ranges indicate clustering of vehicles within predefined operational limits, which could be indicative of urban, suburban, or highway driving conditions.
+\subsection{Distribution of Average Speed}
+The average speed distribution exhibits multimodal characteristics.
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\linewidth]{images/speed_dist.png}
-    \caption{Distribution of average speed in synthetic road data.}
+    \caption{Distribution of average speed in synthetic road data}
     \label{fig:speed_dist}
 \end{figure}
 
-\subsubsection{Impact of Vehicle Type and Season}
+\subsection{Impact of Vehicle Type and Season}
 \begin{itemize}
-    \item \textbf{Vehicle Type Influence:} The distribution of error distances and speeds is influenced by the type of vehicle. Motorcycles generally exhibit higher speeds and greater variance in movement patterns, while trucks tend to maintain steady speeds with fewer deviations.
-    \item \textbf{Seasonal Impact:} Different seasons introduce variations in driving conditions. Winter conditions may lead to increased error distances due to slippery roads, whereas summer conditions facilitate more stable vehicle movement.
+    \item \textbf{Vehicle Type Influence:} Vehicle categories show distinct patterns in error distances and speeds
+    \item \textbf{Seasonal Impact:} Weather conditions affect driving patterns and error distributions
 \end{itemize}
-
-These statistical analyses provide valuable insights into the dynamics of synthetic road traffic, offering potential applications in traffic modeling, autonomous vehicle training, and infrastructure planning.
-
 
 
 
