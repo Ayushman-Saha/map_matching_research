@@ -650,6 +650,85 @@ A heatmap was generated for every node present in the Indian road network. Each 
 \end{itemize}
 This heatmap allowed for a spatial understanding of visibility conditions across different regions.
 
+\subsection{Analysis of Synthetic Road Data}
+
+The synthetic road dataset provides insights into vehicular behavior by analyzing error distances, speed distributions, and temporal trends. This section highlights key observations derived from the dataset.
+
+\subsection{Analysis of Synthetic Road Data}
+
+The synthetic road dataset provides insights into vehicular behavior by analyzing error distances, speed distributions, and temporal trends. This section highlights key observations derived from the dataset.
+
+\subsubsection{Dataset Characteristics}
+The dataset consists of three key randomly chosen attributes:
+\begin{itemize}
+    \item \textbf{Vehicle Type Distribution:} The dataset includes cars, trucks, and motorcycles. These vehicle types are differentiated to account for variations in average speed and change in angle, as motorcycles tend to be faster and exhibit more deviations compared to cars and trucks.
+    \item \textbf{Seasonal Distribution:} The dataset incorporates seasonal variations, including summer, winter, spring, and autumn, to reflect different road and traffic conditions.
+    \item \textbf{Time Distribution:} The time of the event is uniformly selected across the 24-hour period, allowing for a comprehensive analysis of traffic trends.
+\end{itemize}
+
+The error distances and speed distributions are computed based on these parameters, ensuring realistic simulation of road conditions.
+
+\subsubsection{Vehicle Type Distribution}
+Different vehicle types exhibit distinct driving behaviors, as illustrated in Figure~\ref{fig:vehicle_type}. Motorcycles tend to have higher speeds and more deviations, whereas trucks and cars follow more stable patterns.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\linewidth]{images/vehicle_dist.png}
+    \caption{Distribution of vehicle types in synthetic road data.}
+    \label{fig:vehicle_type}
+\end{figure}
+
+\subsubsection{Seasonal Distribution}
+Seasonal variations influence road and traffic conditions significantly. Figure~\ref{fig:season_dist} illustrates how different seasons impact the dataset, affecting speed and error distributions due to weather conditions and road surface changes.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\linewidth]{images/season_dist.png}
+    \caption{Seasonal distribution in synthetic road data.}
+    \label{fig:season_dist}
+\end{figure}
+
+\subsubsection{Distribution of Average Error Distance}
+The distribution of average error distance is characterized by distinct peaks, indicating the presence of multiple driving patterns or vehicle types. As shown in Figure~\ref{fig:error_dist}, the dataset exhibits a multimodal distribution, suggesting variations in tracking accuracy across different conditions.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\linewidth]{images/avg_error.png}
+    \caption{Distribution of average error distance in synthetic road data.}
+    \label{fig:error_dist}
+\end{figure}
+
+\subsubsection{Chosen Time Trends}
+The frequency of chosen time slots is uniformly distributed across the 24-hour period, as illustrated in Figure~\ref{fig:time_trend}. Since this is a synthetic dataset, the distribution does not reflect real-world rush hours but provides an unbiased representation of time selection.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\linewidth]{images/time_dist.png}
+    \caption{Hourly distribution of chosen time slots in synthetic road data.}
+    \label{fig:time_trend}
+\end{figure}
+
+\subsubsection{Distribution of Average Speed}
+The distribution of average speed exhibits a multimodal nature, as seen in Figure~\ref{fig:speed_dist}. This suggests the existence of distinct vehicle categories or varied driving behaviors within the dataset. The peaks at specific speed ranges indicate clustering of vehicles within predefined operational limits, which could be indicative of urban, suburban, or highway driving conditions.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\linewidth]{images/speed_dist.png}
+    \caption{Distribution of average speed in synthetic road data.}
+    \label{fig:speed_dist}
+\end{figure}
+
+\subsubsection{Impact of Vehicle Type and Season}
+\begin{itemize}
+    \item \textbf{Vehicle Type Influence:} The distribution of error distances and speeds is influenced by the type of vehicle. Motorcycles generally exhibit higher speeds and greater variance in movement patterns, while trucks tend to maintain steady speeds with fewer deviations.
+    \item \textbf{Seasonal Impact:} Different seasons introduce variations in driving conditions. Winter conditions may lead to increased error distances due to slippery roads, whereas summer conditions facilitate more stable vehicle movement.
+\end{itemize}
+
+These statistical analyses provide valuable insights into the dynamics of synthetic road traffic, offering potential applications in traffic modeling, autonomous vehicle training, and infrastructure planning.
+
+
+
+
 
 \section{Misc}
 
