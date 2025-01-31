@@ -629,16 +629,15 @@ Where:
     \item $w_i$ represents the weight assigned to turn angle $\theta_i$
     \item $n_i$ is the number of turns with angle $\theta_i$
     \item $L$ is the total path length in kilometers
-    \item $i \in \{15°, 30°, 60°, 180°\}$
 \end{itemize}
 
 The weight assignments are defined as:
 \begin{equation}
     w(\theta) = \begin{cases}
-        1.0 & \text{for } \theta = 15° \\
-        1.5 & \text{for } \theta = 30° \\
-        2.0 & \text{for } \theta = 60° \\
-        3.0 & \text{for } \theta = 180°
+    1.0 & \quad \text{for } \theta = 10^\circ \text{ to } 15^\circ \\
+    1.5 & \quad \text{for } \theta = 15^\circ \text{ to } 30^\circ \\
+    2.0 & \quad \text{for } \theta = 30^\circ \text{ to } 60^\circ \\
+    3.0 & \quad \text{for } \theta = 60^\circ \text{ to } 180^\circ
     \end{cases}
 \end{equation}
 
