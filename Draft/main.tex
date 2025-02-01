@@ -197,6 +197,9 @@ for Vehicular Movement}
 %% of authors' names for this purpose.
 \renewcommand{\shortauthors}{Trovato et al.}
 
+\newcommand{\lat}{\texttt{lat}}
+\newcommand{\lon}{\texttt{lon}}
+
 %%
 %% The abstract is a short summary of the work to be presented in the
 %% article.
@@ -365,149 +368,135 @@ simulate realistic trajectories.
 In doing so, we aim to complement real-world datasets with scalable, privacy-preserving data that can be used for a variety of applications, including transportation modeling, mobility prediction, and traffic management.
 By advancing the field of synthetic trajectory data generation, we hope to contribute to the development of more scalable, accessible, and region-specific tools for urban mobility research.
 
-\subsection{Overview}
-The simulation framework is designed to process geospatial data and generate enriched datasets by simulating vehicle trajectories on a predefined graph.
-The system leverages OpenStreetMap data and incorporates various environmental factors like rainfall, visibility, and traffic conditions. The code is modular, divided across three files.
-
-\section{Dataset}
-
-The simulation utilizes a synthetic dataset comprising 1.3 million records, representing diverse transportation scenarios. Each record captures a detailed route simulation, including spatial, temporal, and vehicular attributes. The dataset was generated to model real-world traffic patterns and route dynamics.
-
-\subsection{Structure of the Dataset}
-
-The dataset structure is summarized in Table~\ref{tab:dataset-structure}.
-
-\begin{table*}[h!]
-\centering
-\caption{Structure of the Dataset}
-\label{tab:dataset-structure}
-\begin{tabular}{|c|c|l|}
-\hline
-\textbf{Field} & \textbf{Data Type} & \textbf{Description} \\ \hline
-\texttt{\_id} & String & Unique identifier for the route record \\ \hline
-\texttt{category} & String & Classification of the route by size (e.g., \textit{large} or \textit{small}) \\ \hline
-\texttt{start\_node} & Integer & Identifier of the starting node in the route \\ \hline
-\texttt{route\_length} & Float & Total length of the route (in meters) \\ \hline
-\texttt{route} & Array & Sequence of nodes defining the route (e.g., junctions or intersections) \\ \hline
-\texttt{trajectory} & Object & Metadata about the vehicle's journey, including: \\
-& & \hspace{1em} \texttt{vehicle\_type}: Type of vehicle (e.g., \textit{car}) \\
-& & \hspace{1em} \texttt{season}: Simulated season (e.g., \textit{autumn}) \\
-& & \hspace{1em} \texttt{chosen\_time}: Starting hour of the journey (24-hour clock) \\
-& & \hspace{1em} \texttt{end\_time}: Hour when the journey ends \\ \hline
-\texttt{coordinates} & Array & Geospatial coordinates representing the route's path \\ \hline
-\texttt{speed} & Array & Speed values recorded during the journey \\ \hline
-\texttt{avg\_error\_distance} & Float & Average deviation between synthetic and actual route data (in meters) \\ \hline
-\end{tabular}
-\end{table*}
-
 \section{Methodology}
+In this section, we describe the methodology used to obtain 
+the dataset.
+Our methodology can broadly be divided into three parts.
+In the first part, we mention a way to convert raw data obtained
+from \textsf{openstreemaps} to graphs.
+In this graph, a node denotes a some location in the 
+the real world whereas an edge represent a
+ road segment connected two nodes.
+Any reasoable vehicular movement corresponds to
+a shortest path in the graph. 
+Hence, in the second part,
+we describe a way to generate shortest paths in the graph.
+In the third phase, we explain how to convert these paths 
+into a sequence of GPS co-ordinates that is a resonable
+replacement for a sequence of  GPS co-ordinates
+collected from a moving vehicle on that route.
 
-\subsection{Geospatial Data Source}
-The graph used for the simulation represents the primary highways and trucking routes across India, extracted from OpenStreetMap (OSM). The graph is structured as:
-
-\begin{itemize}
-    \item \textbf{Nodes}: Represent junctions or intersections on the graph, stored as a GeoDataFrame with geospatial coordinates and attributes.
-    \item \textbf{Edges}: Represent road segments between nodes, stored as a GeoDataFrame with geometry and other metadata.
-\end{itemize}
-
-Mathematically, the graph $G$ is defined as:
-
-\[G = (V, E)\]
-
-where:
-\begin{itemize}
-    \item $V = \{v_1, v_2, ..., v_n\}$ is the set of vertices (nodes) representing road intersections, with each $v_i$ defined as:
-    \[v_i = (lat_i, lon_i, A_i)\]
-    where $lat_i, lon_i$ are geographical coordinates and $A_i$ is the set of attributes for node $i$.
-
-    \item $E = \{e_1, e_2, ..., e_m\}$ is the set of edges representing road segments, with each $e_k$ defined as:
-    \[e_k = (v_i, v_j, G_k, P_k)\]
-    where $v_i, v_j \in V$ are connected nodes, $G_k$ is the geometry of the edge, and $P_k$ is the set of parameters associated with the edge.
-\end{itemize}
-
-\begin{table}[H]
+\subsection{From Geospatial Data to Graphs}
+We construct graph $G = (V, E)$ to represents the primary highways across 
+India, extracted from \textsf{OpenStreetMap (OSM)}.
+A vertex $v_i$ in $V$ consists of a tuple $(\lat_i, \lon_i, A_i)$
+where $\lat_i, \lon_i$ are geographical coordinates and $A_i$ is the set 
+of attributes for node $v_i$.
+Table~\ref{tab:nodes-attributes} shows the attributes of 
+notes and edges obtained from \textsf{OpenStreetMaps}.
+An edge $e_k$ consists of tuple $(v_i, v_j, \Gamma_k, P_k)$
+where $v_i, v_j \in V$ are connected nodes, 
+$\Gamma_k$ is the geometry 
+of the edge, and 
+$P_k$ is the set of parameters associated with the edge.
+Both nodes and edges are stored as a \textsf{GeoDataFrame} 
+with geospatial coordinates and attributes.
+We additionally store other metadata in case of edges. 
+For India, we have $95,324$ nodes and $1,37,280$ 
+many edges at the start of the process. 
+We remark that our code fetched all these data
+within a minute on a laptop with Intel~i5 with $6$ cores $4.4$ Gz and
+$16$Gb RAM.
+ 
+ \begin{table}[t]
 \centering
-\caption{Attributes, Data Types, and Descriptions for Edges}
-\label{tab:edges-attributes}
-\resizebox{\columnwidth}{!}{%
-\begin{tabular}{|c|c|l|}
+\begin{tabular}{|p{0.3\columnwidth}|p{0.65\columnwidth}|}
 \hline
-\textbf{Attribute} & \textbf{Data Type} & \textbf{Description} \\ \hline
-osmid & int & Unique identifier for the edge from OpenStreetMap \\ \hline
-maxspeed & int & Maximum speed limit of the road segment (km/h) \\ \hline
-turn\_severity\_index & float & Numerical index representing the severity of turns \\ \hline
-turn\_density & float & Number of significant turns per km road segment \\ \hline
-significant\_turns & float & Number of turns > 15° in the road segment \\ \hline
-traffic & int & Traffic volume or level on the road segment at a particular hour \\ \hline
-geometry & Shapely.LineString & Geometrical representation of the road segment \\ \hline
-betweenness\_centrality & float & Measure of the edge's importance in the network \\ \hline
-length & float & Length of the road segment (meters) \\ \hline
+\textbf{Node Attribute} & \textbf{Description} \\ \hline
+osmid & Unique identifier for the nodes from OpenStreetMap \\ \hline
+street\_count  & Number of streets at the particular junction \\ \hline
+geometry  & Geometrical representation of the road junction \\ \hline
+\hline
+\textbf{Edge Attribute}  & \textbf{Description} \\ \hline
+osmid & Unique identifier for the edge from OpenStreetMap \\ \hline
+maxspeed  & Maximum speed limit of the road segment (km/h) \\ \hline
+turn\_severity\_ index & Numerical index representing the severity of turns \\ \hline
+turn\_density  & Number of significant turns per km road segment \\ \hline
+significant\_turns  & Number of turns > 15° in the road segment \\ \hline
+traffic & Traffic volume or level on the road segment at a particular hour \\ \hline
+geometry & Geometrical representation of the road segment \\ \hline
+betweenness\_ centrality & Measure of the edge's importance in the network \\ \hline
+length & Length of the road segment (meters)\\
+ \hline
 \end{tabular}
-}
-\end{table}
-
-\begin{table}[H]
-\centering
-\caption{Attributes, Data Types, and Descriptions for Nodes}
+\caption{Attributes, Data Types, and Descriptions for Nodes and Edges
+obtained from \textsf{OpenStreetMaps}}
 \label{tab:nodes-attributes}
-\resizebox{\columnwidth}{!}{%
-\begin{tabular}{|c|c|l|}
-\hline
-\textbf{Attribute} & \textbf{Data Type} & \textbf{Description} \\ \hline
-osmid & int & Unique identifier for the nodes from OpenStreetMap \\ \hline
-street\_count & int & Number of streets at the particular junction \\ \hline
-geometry & Shapely.Point & Geometrical representation of the road junction \\ \hline
-avg\_rainfall & float & Average rainfall value for a particular month \\ \hline
-avg\_visibility & float & Average visibility value for a particular month \\ \hline
-\end{tabular}
-}
-\end{table}
+\end{table}   
+ 
+ \subsection{Shortest Path Generation in Graphs}
+
+In this subsection, we mention a prototype to generate
+the shortest paths in the graph.
+As mentioned before, it is a fair assumption that a vechile
+follows a shortest path between its source and destination.
+Even thought graph theory literature has ample work
+on generating random walks, we could not find
+work on generating random short walk.
+Hence, we build shortest path using basic priciples. 
+
+Our algorithm selects a vertex, say $v_0$, uniformaly at rondom 
+and constructs a breadth-first search (BFS) considering
+it as an initial points. 
+Based on this BFS-tree, it organizes the remaining vertices
+into layers $L_1, L_2, \dots$, where every vertex
+in layer $L_i$ is at distance $i$ from $v_0$.
+To optimize the running time, our algorithm truncates the BFS-tree
+after a fixed number of layers.
+
+Once the BFS layer is complete, the algorithm starts the random
+short path at $v_0$, also called  \emph{starting node}
+and keeps expanding it by picking a vertex from each layer.
+Formaly, it selects a vertex $v_1$ from the first layer $L_1$ uniformly at 
+random.
+Note that all the vertices in $L_1$ are adjacent with $v_0$.
+The algorithm keeps expanding the path to vertex $v_2$ in $L_2$, adjacent to $v_1$, which is again chosen uniformaly at random
+from the neighbors of $v_1$ in $L_2$.
+The shortest path terminates when no valid nodes remain in the next layer or 
+when a predefined maximum path length is reached.
+By the properties of BFS layers, it is easy to conclude that the resulting
+path is a shortest path in the graph.
+We remark that we can generate multiple shortest paths 
+after one implimentation of BFS layers.
+
+To represent various cases, we classify paths into categories based on predefined length ranges.
+We use the following four labels:
+\emph{Small} (for paths of lengths 10 to 20 kilometers)
+\emph{Medium} (for paths of lengths 20 to 80 kilometers)
+\emph{Large} (for paths of lengths 80 to 250 kilometers), and
+\emph{XL} (for pahts of lengths 250 to 750 kilometers).
+
+We conclude this subsection with a note on storage of these paths.
+The algorithm stores these generated paths as documents in a 
+\textsf{NoSQL} Database.
+Each document contains the following attributes:
+$(i)$ \emph{Route} (which is a list of node IDs forming the path),
+$(ii)$ \emph{Start Node}, 
+$(iii)$ \emph{Route Length}, and
+$(iv)$ \emph{Category}.
 
 
-\subsection{Path Generation}
-Paths in the graph are generated using a three-step process: BFS-based layering, random walk algorithms, and categorization.
+\subsection{From Shortest Paths to Vehicular Movement}
+The point generation process is a key component of this simulation framework. 
+It focuses on generating high-resolution geospatial points along edges of 
+the graph while incorporating dynamic environmental and traffic parameters. 
+A \textbf{segment} is defined as a particular edge divided into a specific 
+interval in meters.
 
-\subsubsection{BFS Layering}
-\begin{enumerate}
-    \item Start a Breadth-First Search (BFS) from an initial node $v_0$.
-    \item Organize nodes at distance $i$ into layer $L_n$, where $i \geq 1$. Each layer contains nodes reachable from the start node at a specific distance.
-    \item Optionally, truncate the BFS after a fixed number of layers to limit the search space.
-\end{enumerate}
+\newpage
 
-\subsubsection{Random Walk Path Generation}
-\begin{enumerate}
-    \item The random walk begins at $v_0$ (starting node).
-    \item Select a vertex $v_1$ from $L_1$ (the first layer) that is adjacent to $v_0$.
-    \item Proceed to a vertex $v_2$ in $L_2$, adjacent to $v_1$, and continue this process for successive layers.
-    \item The walk terminates when no valid nodes remain in the next layer or when a predefined maximum path length is reached.
-    \item Each path is unique, as vertices are not revisited within the same walk.
-\end{enumerate}
 
-\subsubsection{Categorization of Paths}
-\begin{enumerate}
-    \item Compute the length of each path using the road segment lengths (edge metadata).
-    \item Classify paths into categories based on predefined length ranges:
-    \begin{itemize}
-        \item \textbf{Small}: 10 to 20 kilometers
-        \item \textbf{Medium}: 20 to 80 kilometers
-        \item \textbf{Large}: 80 to 250 kilometers
-        \item \textbf{XL}: 250 to 750 kilometers
-    \end{itemize}
-    \item Randomly sample a fixed number of paths from each category for further analysis.
-\end{enumerate}
-
-\subsection{Path Storage and Retrieval}
-\subsubsection{Storage in database}
-\begin{itemize}
-    \item Paths are stored as documents in a NoSQL Database
-    \item Each document contains:
-    \begin{itemize}
-        \item \textbf{Route}: A list of node IDs forming the path
-        \item \textbf{Start Node}: The node from which the path begins
-        \item \textbf{Route Length}: Total length of the path
-        \item \textbf{Category}: The length-based category of the path
-    \end{itemize}
-\end{itemize}
+\vspace{2cm}
 
 \subsubsection{Reconstruction}
 \begin{itemize}
@@ -538,10 +527,17 @@ Ungrouped parameters are directly normalized without requiring any prior groupin
 \end{enumerate}
 
 \subsection{Point Generation Algorithm}
-The point generation process is a key component of this simulation framework. It focuses on generating high-resolution geospatial points along edges of the graph while incorporating dynamic environmental and traffic parameters. A \textbf{segment} is defined as a particular edge divided into a specific interval in meters.
+
+
+
 
 \subsubsection{Defining Y}
-Initially, Y is set based on the vehicle type and a predefined sampling rate. For instance, vehicles such as cars or trucks have different base rates for generating points along an edge segment. This base Y value (denoted as $Y_0$) reflects the sampling density and is adjusted dynamically based on parameter changes during the simulation.
+Initially, $Y$ is set based on the vehicle type and a predefined sampling rate. 
+For instance, vehicles such as cars or trucks have different base 
+rates for generating points along an edge segment. 
+This base $Y$ value (denoted as $Y_0$) reflects the sampling density 
+and is adjusted dynamically based on parameter 
+changes during the simulation.
 
 \subsubsection{Adjusting Y Dynamically}
 The adjustment of Y is influenced by changes in grouped and global parameters:
@@ -704,6 +700,37 @@ The visibility conditions were analyzed across different seasons to identify tem
 % \end{figure}
 
 
+\section{Dataset}
+
+The simulation utilizes a synthetic dataset comprising 1.3 million records, representing diverse transportation scenarios. Each record captures a detailed route simulation, including spatial, temporal, and vehicular attributes. The dataset was generated to model real-world traffic patterns and route dynamics.
+
+\subsection{Structure of the Dataset}
+
+The dataset structure is summarized in Table~\ref{tab:dataset-structure}.
+
+\begin{table*}[h!]
+\centering
+\caption{Structure of the Dataset}
+\label{tab:dataset-structure}
+\begin{tabular}{|c|c|l|}
+\hline
+\textbf{Field} & \textbf{Data Type} & \textbf{Description} \\ \hline
+\texttt{\_id} & String & Unique identifier for the route record \\ \hline
+\texttt{category} & String & Classification of the route by size (e.g., \textit{large} or \textit{small}) \\ \hline
+\texttt{start\_node} & Integer & Identifier of the starting node in the route \\ \hline
+\texttt{route\_length} & Float & Total length of the route (in meters) \\ \hline
+\texttt{route} & Array & Sequence of nodes defining the route (e.g., junctions or intersections) \\ \hline
+\texttt{trajectory} & Object & Metadata about the vehicle's journey, including: \\
+& & \hspace{1em} \texttt{vehicle\_type}: Type of vehicle (e.g., \textit{car}) \\
+& & \hspace{1em} \texttt{season}: Simulated season (e.g., \textit{autumn}) \\
+& & \hspace{1em} \texttt{chosen\_time}: Starting hour of the journey (24-hour clock) \\
+& & \hspace{1em} \texttt{end\_time}: Hour when the journey ends \\ \hline
+\texttt{coordinates} & Array & Geospatial coordinates representing the route's path \\ \hline
+\texttt{speed} & Array & Speed values recorded during the journey \\ \hline
+\texttt{avg\_error\_distance} & Float & Average deviation between synthetic and actual route data (in meters) \\ \hline
+\end{tabular}
+\end{table*}
+
 \section{Post-GPS Generation Dataset Analysis}
 
 \subsection{Dataset Characteristics}
@@ -793,6 +820,47 @@ to vehicular movements.
 These sequences are of varying complexities and charcters
 and together they span total of XYZ kilometers. 
 
+\subsection{Overview}
+The simulation framework is designed to process geospatial data and generate enriched datasets by simulating vehicle trajectories on a predefined graph.
+The system leverages OpenStreetMap data and incorporates various environmental factors like rainfall, visibility, and traffic conditions. The code is modular, divided across three files.
+
+\begin{table}[H]
+\centering
+\caption{Attributes, Data Types, and Descriptions for Edges}
+\label{tab:edges-attributes}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{|c|c|l|}
+\hline
+\textbf{Attribute} & \textbf{Data Type} & \textbf{Description} \\ \hline
+osmid & int & Unique identifier for the edge from OpenStreetMap \\ \hline
+maxspeed & int & Maximum speed limit of the road segment (km/h) \\ \hline
+turn\_severity\_index & float & Numerical index representing the severity of turns \\ \hline
+turn\_density & float & Number of significant turns per km road segment \\ \hline
+significant\_turns & float & Number of turns > 15° in the road segment \\ \hline
+traffic & int & Traffic volume or level on the road segment at a particular hour \\ \hline
+geometry & Shapely.LineString & Geometrical representation of the road segment \\ \hline
+betweenness\_centrality & float & Measure of the edge's importance in the network \\ \hline
+length & float & Length of the road segment (meters) \\ \hline
+\end{tabular}
+}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Attributes, Data Types, and Descriptions for Nodes}
+\label{tab:nodes-attributes}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{|c|c|l|}
+\hline
+\textbf{Attribute} & \textbf{Data Type} & \textbf{Description} \\ \hline
+osmid & int & Unique identifier for the nodes from OpenStreetMap \\ \hline
+street\_count & int & Number of streets at the particular junction \\ \hline
+geometry & Shapely.Point & Geometrical representation of the road junction \\ \hline
+avg\_rainfall & float & Average rainfall value for a particular month \\ \hline
+avg\_visibility & float & Average visibility value for a particular month \\ \hline
+\end{tabular}
+}
+\end{table}
 
 \iffalse
 
